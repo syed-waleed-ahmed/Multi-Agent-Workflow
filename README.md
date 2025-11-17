@@ -54,21 +54,6 @@ multi_agent_workflow/
 │
 └── README.md
 ```
-## ⚙️ Installation
-1. Clone repository
-- git clone https://github.com/<your-username>/multi-agent-workflow.git
-- cd multi-agent-workflow
-
-2. Create virtual environment
-- python -m venv .venv
-Activate it: .\.venv\Scripts\activate
-
-3. Install dependencies
-- pip install -r requirements.txt
-
-4. Add .env file
-- GROQ_API_KEY=your_groq_api_key_here
-
 ## ▶️ Usage
 
 Run the program:
