@@ -110,6 +110,6 @@ This project demonstrates:
 - Plugin for automatic image generation (DALL·E, SDXL, Flux)
 - Save outputs to /outputs/ directory
 
-## ⭐ Author
+## Author
 
-Created by SYED WALEED AHMED
+Created by Syed Waleed Ahmed
