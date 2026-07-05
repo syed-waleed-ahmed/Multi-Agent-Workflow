@@ -2,7 +2,6 @@
 
 **A production-grade, multi-agent workflow that turns a one-line product brief into a complete, ready-to-hand-off marketing campaign.**
 
-[![CI](https://github.com/syed-waleed-ahmed/multi_agent_workflow/actions/workflows/ci.yml/badge.svg)](https://github.com/syed-waleed-ahmed/multi_agent_workflow/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
 [![Lint: ruff](https://img.shields.io/badge/lint-ruff-261230)](https://github.com/astral-sh/ruff)
 [![Types: mypy strict](https://img.shields.io/badge/types-mypy%20strict-blue)](http://mypy-lang.org/)
@@ -26,19 +25,26 @@ It runs on any **OpenAI-compatible** endpoint and defaults to [Groq](https://gro
 
 ## Table of contents
 
-- [Why it is production-ready](#why-it-is-production-ready)
-- [Architecture](#architecture)
-- [Project structure](#project-structure)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Output](#output)
-- [Development](#development)
-- [Testing](#testing)
-- [Security](#security)
-- [Roadmap](#roadmap)
-- [Contributing](#contributing)
-- [License](#license)
+- [Campaign Forge](#campaign-forge)
+  - [Table of contents](#table-of-contents)
+  - [Why it is production-ready](#why-it-is-production-ready)
+  - [Architecture](#architecture)
+  - [Project structure](#project-structure)
+  - [Installation](#installation)
+  - [Configuration](#configuration)
+  - [Usage](#usage)
+    - [Single campaign (interactive)](#single-campaign-interactive)
+    - [Single campaign (flags)](#single-campaign-flags)
+    - [Batch mode (concurrent)](#batch-mode-concurrent)
+    - [As a library](#as-a-library)
+  - [Output](#output)
+  - [Development](#development)
+  - [Testing](#testing)
+  - [Security](#security)
+  - [Roadmap](#roadmap)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Author](#author)
 
 ---
 
