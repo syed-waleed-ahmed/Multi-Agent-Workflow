@@ -44,3 +44,6 @@ jobs:
 
       - name: Pytest
         run: pytest --cov=campaign_forge --cov-report=term-missing --cov-fail-under=90
+
+      - name: Evaluation (offline smoke)
+        run: python evals/run_eval.py --offline --min-pass-rate 1.0

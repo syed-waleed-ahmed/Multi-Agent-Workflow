@@ -56,6 +56,39 @@ class TestCampaignBrief:
                 channels=["email"],
             )
 
+    def test_over_long_field_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            CampaignBrief(
+                product_name="x" * 5_000,  # far beyond MAX_NAME_LEN
+                product_description="D",
+                target_audience="A",
+                goal="G",
+                tone="T",
+                channels=["email"],
+            )
+
+    def test_too_many_channels_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            CampaignBrief(
+                product_name="P",
+                product_description="D",
+                target_audience="A",
+                goal="G",
+                tone="T",
+                channels=[f"channel-{i}" for i in range(100)],
+            )
+
+    def test_over_long_channel_rejected(self) -> None:
+        with pytest.raises(ValidationError):
+            CampaignBrief(
+                product_name="P",
+                product_description="D",
+                target_audience="A",
+                goal="G",
+                tone="T",
+                channels=["x" * 500],
+            )
+
     def test_brief_is_immutable(self, sample_brief: CampaignBrief) -> None:
         with pytest.raises(ValidationError):
             sample_brief.product_name = "changed"  # type: ignore[misc]
@@ -117,6 +150,28 @@ class TestCampaignResult:
 
     def test_generated_at_is_timezone_aware(self, sample_result: CampaignResult) -> None:
         assert sample_result.generated_at.tzinfo is not None
+
+    def test_save_does_not_overwrite_on_name_clash(
+        self, sample_result: CampaignResult, tmp_path: Path
+    ) -> None:
+        # A twin with the identical timestamp + product name (routine in a
+        # concurrent batch) must not clobber the first result's files.
+        first = sample_result.save(tmp_path)
+        second = sample_result.model_copy().save(tmp_path)
+        assert first != second
+        assert first.exists() and second.exists()
+        assert second.with_suffix(".json").exists()
+
+    def test_save_accepts_str_dir_and_non_latin_name(
+        self, sample_result: CampaignResult, tmp_path: Path
+    ) -> None:
+        # A non-Latin name slugifies to the constant fallback; saving must still
+        # succeed, and a string output dir must be accepted.
+        brief = sample_result.brief.model_copy(update={"product_name": "水瓶"})
+        result = sample_result.model_copy(update={"brief": brief})
+        md_path = result.save(str(tmp_path))
+        assert md_path.exists()
+        assert md_path.with_suffix(".json").exists()
 
 
 @pytest.mark.parametrize(

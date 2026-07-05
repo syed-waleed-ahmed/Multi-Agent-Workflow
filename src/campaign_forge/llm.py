@@ -180,7 +180,15 @@ class LLMClient:
 
         if not response.choices:
             raise LLMError("Model returned no choices.")
-        content = response.choices[0].message.content
+        choice = response.choices[0]
+        content = choice.message.content
         if not content or not content.strip():
             raise LLMError("Model returned an empty response.")
+        # A ``length`` finish reason means the model was cut off at the token
+        # limit. The text looks fine but is truncated mid-thought (and any JSON
+        # is likely incomplete), so fail loudly rather than save a partial brief.
+        if getattr(choice, "finish_reason", None) == "length":
+            raise LLMError(
+                "Model response was truncated at the token limit. Increase CF_MAX_TOKENS and retry."
+            )
         return content.strip()

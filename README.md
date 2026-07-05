@@ -40,6 +40,7 @@ It runs on any **OpenAI-compatible** endpoint and defaults to [Groq](https://gro
   - [Output](#output)
   - [Development](#development)
   - [Testing](#testing)
+  - [Evaluation](#evaluation)
   - [Security](#security)
   - [Roadmap](#roadmap)
   - [Contributing](#contributing)
@@ -52,8 +53,9 @@ It runs on any **OpenAI-compatible** endpoint and defaults to [Groq](https://gro
 
 - **Multi-agent orchestration** built on a shared `BaseAgent` abstraction, so adding or swapping a stage is a small, local change.
 - **Built for scale.** `run_batch()` fans many briefs across a thread pool with **per-item error isolation**: one failing brief never aborts the batch, and results are returned in input order.
-- **Resilient by default.** Automatic retries with exponential backoff and jitter on transient API errors (rate limits, timeouts, 5xx), a hard per-request timeout, and fast-fail on permanent errors. The backoff also honours a server `Retry-After` hint.
-- **Typed and validated end-to-end.** [Pydantic](https://docs.pydantic.dev/) models validate every input and every structured model output; malformed data is rejected at the boundary rather than propagating.
+- **Resilient by default.** Automatic retries with exponential backoff and jitter on transient API errors (rate limits, timeouts, 5xx), a hard per-request timeout, and fast-fail on permanent errors. The backoff also honours a server `Retry-After` hint. Truncated responses (cut off at the token limit) fail loudly instead of shipping a partial brief, and the copywriter self-repairs a malformed JSON response by re-asking once with the error fed back.
+- **Typed and validated end-to-end.** [Pydantic](https://docs.pydantic.dev/) models validate every input and every structured model output; fields are length-bounded so oversized input is rejected at the boundary rather than inflating cost or propagating downstream.
+- **Measured, not just mocked.** Beyond the offline unit suite, an [evaluation harness](#evaluation) runs a diverse, adversarial brief corpus end-to-end and scores completion, grounding, and prompt-injection resistance - so real-world behaviour is a tracked number, not a guess.
 - **Import-safe.** No side effects at import time, so the package is safe to embed as a library. Configuration is lazy and comes from environment variables or a `.env` file.
 - **Fully typed and linted.** `mypy --strict` and `ruff` pass cleanly; the package ships a `py.typed` marker.
 - **Tested without a network.** The suite is fully mocked (no API key, no calls) and covers retries, batch isolation, output validation, and the CLI. Continuous integration runs the same gates on Python 3.10-3.12.
@@ -106,6 +108,7 @@ multi_agent_workflow/
       base.py                  # BaseAgent abstraction
       research.py  copywriter.py  art_director.py  manager.py
   tests/                       # fully mocked pytest suite
+  evals/                       # real-model evaluation harness + brief corpus
 ```
 
 ---
@@ -239,6 +242,8 @@ Every successful run produces two artifacts in the output directory:
 - `<timestamp>_<product-slug>.md` - a self-contained brief with a metadata header, the final campaign brief, and appendices (research summary, structured copy, image prompts).
 - `<timestamp>_<product-slug>.json` - the complete `CampaignResult` for programmatic use.
 
+Files are created atomically and never overwrite an existing file (a numeric suffix is appended on a clash), so concurrent batches - and non-Latin product names, which share a slug fallback - stay distinct.
+
 ---
 
 ## Development
@@ -265,7 +270,21 @@ The test suite is **fully mocked**: it needs no API key and makes no network cal
 pytest --cov=campaign_forge --cov-report=term-missing
 ```
 
-Continuous integration runs `ruff`, `ruff format --check`, `mypy src`, and `pytest` (with a 90% coverage floor) on Python 3.10, 3.11, and 3.12.
+Continuous integration runs `ruff`, `ruff format --check`, `mypy src`, `pytest` (with a 90% coverage floor), and the offline evaluation smoke test on Python 3.10, 3.11, and 3.12.
+
+---
+
+## Evaluation
+
+The mocked suite proves the plumbing but never asks a real model whether an unusual brief produces a usable campaign. The [`evals/`](evals/) harness closes that gap: it runs a diverse, deliberately adversarial corpus - non-Latin and emoji text, oversized input, long channel lists, a prompt-injection attempt, and minimal / ambiguous briefs - end-to-end, and scores each result on completion, grounding, substance, and injection resistance.
+
+```bash
+python evals/run_eval.py --offline          # no API key: deterministic smoke test
+python evals/run_eval.py                     # live: real success rate on your model
+python evals/run_eval.py --report out.json   # also write a machine-readable scorecard
+```
+
+The process exits non-zero when the pass rate falls below `--min-pass-rate` (default `0.8`), so it doubles as a nightly or pre-release gate. Add any input shape the pipeline should handle to `evals/corpus.json`; see [`evals/README.md`](evals/README.md) for the scoring details.
 
 ---
 

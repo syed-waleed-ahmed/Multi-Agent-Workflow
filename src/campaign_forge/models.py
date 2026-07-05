@@ -18,6 +18,20 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 # A string that is trimmed of surrounding whitespace and must not be empty.
 NonEmptyStr = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
+# Upper bounds on brief fields. These are generous for realistic input but stop a
+# pathological brief (a pasted document, thousands of channels) from ballooning
+# every prompt, blowing past the model context window, and running up API cost.
+MAX_NAME_LEN = 200
+MAX_LINE_LEN = 500
+MAX_DESCRIPTION_LEN = 4000
+MAX_CHANNELS = 25
+MAX_CHANNEL_LEN = 60
+
+# A single channel label: trimmed, non-empty, and length-bounded.
+ChannelStr = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_CHANNEL_LEN)
+]
+
 _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 
@@ -33,12 +47,12 @@ class CampaignBrief(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    product_name: NonEmptyStr
-    product_description: NonEmptyStr
-    target_audience: NonEmptyStr
-    goal: NonEmptyStr
-    tone: NonEmptyStr
-    channels: list[str] = Field(min_length=1)
+    product_name: NonEmptyStr = Field(max_length=MAX_NAME_LEN)
+    product_description: NonEmptyStr = Field(max_length=MAX_DESCRIPTION_LEN)
+    target_audience: NonEmptyStr = Field(max_length=MAX_LINE_LEN)
+    goal: NonEmptyStr = Field(max_length=MAX_LINE_LEN)
+    tone: NonEmptyStr = Field(max_length=MAX_LINE_LEN)
+    channels: list[ChannelStr] = Field(min_length=1, max_length=MAX_CHANNELS)
 
     @field_validator("channels", mode="before")
     @classmethod
@@ -144,20 +158,43 @@ class CampaignResult(BaseModel):
         """Return a JSON-serialisable representation of the result."""
         return self.model_dump(mode="json")
 
-    def save(self, output_dir: Path) -> Path:
+    def save(self, output_dir: Path | str) -> Path:
         """Persist the result as ``.md`` and ``.json`` files.
 
+        The base filename is ``<timestamp>_<product-slug>``. Because the
+        timestamp only has second resolution - and because non-Latin product
+        names all slugify to the same fallback - two results can compete for the
+        same name (routinely so in a concurrent batch). To avoid one silently
+        overwriting another, the Markdown file is created *exclusively*; on a
+        clash a numeric suffix (``-1``, ``-2``, ...) is appended until a free
+        name is found.
+
         Args:
-            output_dir: Directory to write into (created if necessary).
+            output_dir: Directory to write into (created if necessary). A string
+                is accepted and coerced to a :class:`~pathlib.Path`.
 
         Returns:
             Path to the written Markdown file.
         """
+        output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
         stamp = self.generated_at.strftime("%Y%m%d-%H%M%S")
-        base = output_dir / f"{stamp}_{slugify(self.brief.product_name)}"
-        md_path = base.with_suffix(".md")
-        json_path = base.with_suffix(".json")
-        md_path.write_text(self.to_markdown(), encoding="utf-8")
-        json_path.write_text(self.model_dump_json(indent=2), encoding="utf-8")
+        slug = slugify(self.brief.product_name)
+        markdown = self.to_markdown()
+
+        attempt = 0
+        while True:
+            suffix = "" if attempt == 0 else f"-{attempt}"
+            base = output_dir / f"{stamp}_{slug}{suffix}"
+            md_path = base.with_suffix(".md")
+            try:
+                # Exclusive create ("x") is atomic: it fails rather than clobber
+                # an existing file, so concurrent writers never lose data.
+                with md_path.open("x", encoding="utf-8") as handle:
+                    handle.write(markdown)
+                break
+            except FileExistsError:
+                attempt += 1
+
+        base.with_suffix(".json").write_text(self.model_dump_json(indent=2), encoding="utf-8")
         return md_path

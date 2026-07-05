@@ -31,7 +31,7 @@ from .loaders import load_briefs
 from .models import CampaignBrief, CampaignResult, CopyContent
 from .workflow import BatchItemResult, CampaignWorkflow
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "AgentError",

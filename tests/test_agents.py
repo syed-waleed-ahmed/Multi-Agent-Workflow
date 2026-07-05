@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from campaign_forge.agents import (
@@ -14,7 +16,7 @@ from campaign_forge.agents import (
 from campaign_forge.exceptions import OutputParsingError
 from campaign_forge.models import CampaignBrief, CopyContent
 
-from .conftest import FakeLLM
+from .conftest import COPY_PAYLOAD, FakeLLM
 
 
 def test_research_agent_returns_text(sample_brief: CampaignBrief, fake_llm: FakeLLM) -> None:
@@ -47,6 +49,27 @@ def test_copywriter_raises_on_incomplete_json(sample_brief: CampaignBrief) -> No
 
     with pytest.raises(OutputParsingError):
         CopywriterAgent(PartialLLM()).run(sample_brief, "research")  # type: ignore[arg-type]
+
+
+def test_copywriter_repairs_after_first_bad_response(sample_brief: CampaignBrief) -> None:
+    class FlakyLLM(FakeLLM):
+        """Returns garbage once, then valid JSON on the repair attempt."""
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.attempts = 0
+
+        def complete(self, system_prompt: str, user_prompt: str, *, json_mode: bool = False) -> str:
+            self.attempts += 1
+            if self.attempts == 1:
+                return "sorry, here is your copy!"  # not JSON
+            return json.dumps(COPY_PAYLOAD)
+
+    llm = FlakyLLM()
+    copy = CopywriterAgent(llm).run(sample_brief, "research")  # type: ignore[arg-type]
+    assert isinstance(copy, CopyContent)
+    assert copy.tagline == COPY_PAYLOAD["tagline"]
+    assert llm.attempts == 2  # first failed, repair succeeded
 
 
 def test_art_director_parses_json(

@@ -36,10 +36,17 @@ ruff check .            # lint
 ruff format .           # format
 mypy src                # strict type-check
 pytest                  # tests
+python evals/run_eval.py --offline   # end-to-end eval smoke (no API key)
 ```
 
 These are the same checks that run in continuous integration on Python 3.10,
 3.11, and 3.12. A pull request will not be merged unless all of them pass.
+
+The `pytest` suite is fully mocked and proves the plumbing; the eval harness in
+`evals/` measures real-world behaviour on a diverse, adversarial brief corpus
+(see [`evals/README.md`](evals/README.md)). Run the offline smoke on every
+change, and a live run (`python evals/run_eval.py`) when you touch prompts,
+parsing, or the workflow.
 
 ## Coding standards
 
@@ -55,7 +62,9 @@ These are the same checks that run in continuous integration on Python 3.10,
 - **Docstrings** on public modules, classes, and functions; explain the "why",
   not just the "what".
 - **Tests** accompany behavioural changes. The suite must stay fully offline -
-  no real API keys or network calls. Inject a fake LLM client instead.
+  no real API keys or network calls. Inject a fake LLM client instead. When you
+  fix a bug triggered by an unusual input, add that input shape to
+  `evals/corpus.json` so the eval harness guards against a regression.
 
 ## Adding a new agent
 

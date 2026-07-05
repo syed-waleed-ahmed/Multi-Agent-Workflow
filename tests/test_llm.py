@@ -21,13 +21,16 @@ class _Message:
 
 
 class _Choice:
-    def __init__(self, content: str | None) -> None:
+    def __init__(self, content: str | None, *, finish_reason: str = "stop") -> None:
         self.message = _Message(content)
+        self.finish_reason = finish_reason
 
 
 class _Response:
-    def __init__(self, content: str | None, *, choices: bool = True) -> None:
-        self.choices = [_Choice(content)] if choices else []
+    def __init__(
+        self, content: str | None, *, choices: bool = True, finish_reason: str = "stop"
+    ) -> None:
+        self.choices = [_Choice(content, finish_reason=finish_reason)] if choices else []
 
 
 class _FakeCompletions:
@@ -88,6 +91,15 @@ def test_no_choices_raises() -> None:
         _settings(), client=FakeOpenAI(lambda _: _Response(None, choices=False))
     )
     with pytest.raises(LLMError, match="no choices"):
+        client.complete("sys", "user")
+
+
+def test_truncated_response_raises() -> None:
+    def responder(_: dict[str, Any]) -> _Response:
+        return _Response("half a sentence that got cut", finish_reason="length")
+
+    client = LLMClient(_settings(), client=FakeOpenAI(responder))  # type: ignore[arg-type]
+    with pytest.raises(LLMError, match="truncated"):
         client.complete("sys", "user")
 
 

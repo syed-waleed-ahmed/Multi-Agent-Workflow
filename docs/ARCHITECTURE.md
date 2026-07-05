@@ -199,8 +199,10 @@ classDiagram
 ```
 
 `CampaignBrief` is immutable (frozen) and forbids unknown fields, so it is a safe
-contract to pass around. `CopyContent` coerces common model quirks (for example,
-a single headline string becomes a one-element list) while still rejecting
+contract to pass around. Every field is length-bounded and the channel list is
+capped in count and per-item length, so a pathological brief cannot balloon
+prompt size or cost. `CopyContent` coerces common model quirks (for example, a
+single headline string becomes a one-element list) while still rejecting
 genuinely incomplete output.
 
 ## 7. Concurrency and scaling
@@ -237,6 +239,21 @@ Resilience is centralised in `LLMClient`:
 - **Timeout** bounds every request.
 - **Empty responses** are treated as failures rather than returned as empty
   strings.
+- **Truncated responses** - a completion cut off at the token limit
+  (`finish_reason == "length"`) - are treated as failures too, so a partial,
+  mid-sentence brief is never saved as if it succeeded.
+
+Agents add a second, output-shaped layer of resilience on top of the transport
+layer. The copywriter re-asks the model once, with the parse error fed back, when
+its first response is not valid `CopyContent`; the art director falls back to
+line parsing when the model ignores the JSON request. A single malformed response
+therefore rarely fails a whole campaign.
+
+Durability at the write boundary: `CampaignResult.save()` creates its Markdown
+file with an exclusive open and appends a numeric suffix on a name clash, so two
+results that share a timestamp-second and slug (common in a batch, and universal
+for non-Latin names that slugify to a constant fallback) cannot overwrite each
+other.
 
 In batch mode, `_run_isolated` converts any exception into a captured error on
 the `BatchItemResult`, preserving whole-batch progress.
@@ -280,6 +297,15 @@ without any network access or API key. Coverage spans:
 - batch ordering and per-item error isolation,
 - lenient parsing of imperfect model output,
 - CLI behaviour, exit codes, and stdout/stderr separation.
+
+The mocked suite proves the plumbing but cannot judge real-model quality. A
+separate **evaluation harness** (`evals/`) fills that gap: it runs a diverse,
+deliberately adversarial brief corpus (non-Latin and emoji text, oversized input,
+long channel lists, a prompt-injection attempt, minimal and ambiguous briefs)
+end-to-end and scores each result on completion, grounding, substance, and
+injection resistance. It runs offline against a deterministic fake model (a
+key-free CI smoke test) or against a live provider, and exits non-zero below a
+configurable pass-rate gate.
 
 ## 13. Packaging and deployment
 

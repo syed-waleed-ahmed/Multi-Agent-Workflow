@@ -29,6 +29,9 @@ coverage.xml
 # Generated output
 outputs/
 
+# Eval run reports (regenerated each run)
+evals/*_report.json
+
 # Stray tool output (not part of this project)
 graphify-out/cache/
 .claude/
