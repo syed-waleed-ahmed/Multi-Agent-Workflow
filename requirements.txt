@@ -1,2 +1,8 @@
-openai>=1.0.0
-python-dotenv>=1.0.0
+# Runtime dependencies are declared in pyproject.toml (the source of truth).
+# This file is provided for convenience: `pip install -r requirements.txt`.
+# For development tooling, install the extras: `pip install -e ".[dev]"`.
+openai>=1.30
+pydantic>=2.6
+pydantic-settings>=2.2
+tenacity>=8.2
+rich>=13.7

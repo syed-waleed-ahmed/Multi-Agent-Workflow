@@ -1,0 +1,26 @@
+[
+  {
+    "product_name": "EcoSip Reusable Bottle",
+    "product_description": "Stylish insulated bottle that keeps drinks cold for 24 hours.",
+    "target_audience": "young professionals who care about sustainability",
+    "goal": "drive online sales for the summer collection",
+    "tone": "fresh, energetic, eco-friendly",
+    "channels": ["instagram", "tiktok", "email"]
+  },
+  {
+    "product_name": "FocusFlow Notebook",
+    "product_description": "A dot-grid notebook with a built-in weekly planning system for deep work.",
+    "target_audience": "knowledge workers and students who struggle with focus",
+    "goal": "grow newsletter signups ahead of the Q3 launch",
+    "tone": "calm, thoughtful, premium",
+    "channels": ["linkedin", "email", "youtube"]
+  },
+  {
+    "product_name": "PawPantry Fresh Dog Food",
+    "product_description": "Vet-formulated fresh dog food delivered on a flexible subscription.",
+    "target_audience": "millennial dog owners in cities",
+    "goal": "increase first-box subscription conversions",
+    "tone": "warm, playful, trustworthy",
+    "channels": ["instagram", "facebook", "email"]
+  }
+]
