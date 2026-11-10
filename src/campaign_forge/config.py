@@ -118,6 +118,8 @@ class Settings(BaseSettings):
     agent_overrides: dict[str, AgentRoute] = Field(default_factory=dict)
     fallback_providers: str = ""
     free_only: bool = True
+    #: Per-provider limit on requests in flight, e.g. {"groq": 4} on a paid tier.
+    provider_concurrency: dict[str, int] = Field(default_factory=dict)
 
     # --- Research tools -----------------------------------------------------
     research_tools: str = "wikipedia"

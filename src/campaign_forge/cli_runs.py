@@ -99,6 +99,13 @@ def add_engine_commands(subparsers: Any, common: Any) -> None:
     execute.add_argument("workflow", help="Template id or path to a JSON definition")
     execute.add_argument("--brief", type=Path, required=True, help="JSON file with one brief")
     execute.add_argument(
+        "--auto-resume",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Resume up to N times after a rate-limit pause (waits out the hint)",
+    )
+    execute.add_argument(
         "--sources",
         nargs="*",
         default=[],
@@ -210,6 +217,8 @@ def cmd_execute(args: argparse.Namespace, console: Console, settings: Settings) 
         inputs["sources"] = load_sources(args.sources)
     engine = build_engine(settings)
     result = engine.start(definition, inputs)
+    if args.auto_resume > 0:
+        result = engine.run_until_settled(result, max_resumes=args.auto_resume)
     return _report(console, result, args.json, settings)
 
 

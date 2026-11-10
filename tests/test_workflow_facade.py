@@ -87,7 +87,7 @@ def test_v1_override_keys_apply_to_legacy_agents(sample_brief: CampaignBrief) ->
     assert result.ok
     by_agent = {r.metadata["agent"]: r.max_tokens for r in fake.requests}
     assert by_agent["legacy.manager"] == 1500
-    assert by_agent["legacy.research"] == 800
+    assert by_agent["legacy.research"] == 1000  # legacy spec default (ADR-030)
 
 
 def test_legacy_client_provider_adapts_v1_clients() -> None:
@@ -143,3 +143,26 @@ def test_unexpected_engine_state_becomes_a_clear_error(
     monkeypatch.setattr(workflow.engine, "start", no_errors)
     with pytest.raises(Exception, match="Campaign run failed"):
         workflow.run(sample_brief)
+
+
+@pytest.mark.usefixtures("no_keys")
+def test_long_output_agents_route_to_the_strong_model() -> None:
+    """D17: the final briefs overflow qwen3.8's 1,000-token output cap; gpt-oss-120b does not."""
+    from campaign_forge.agents.legacy import LegacyManagerAgent, LegacyResearchAgent
+    from campaign_forge.agents.library import CampaignReporterAgent
+
+    router = ProviderRouter(Settings(_env_file=None, groq_api_key="k"))  # type: ignore[call-arg]
+    for spec in (LegacyManagerAgent.spec, CampaignReporterAgent.spec):
+        route = router.resolve(spec.id, model_class=spec.model_class)
+        assert route.model == "openai/gpt-oss-120b", spec.id
+    assert LegacyManagerAgent.spec.limits.max_tokens == 2000
+    research = LegacyResearchAgent.spec
+    assert router.resolve(research.id, model_class=research.model_class).model == (
+        "qwen/qwen3.8-27b"
+    )
+    explicit = Settings(_env_file=None, groq_api_key="k", model="my-model")  # type: ignore[call-arg]
+    manager = LegacyManagerAgent.spec
+    assert (
+        ProviderRouter(explicit).resolve(manager.id, model_class=manager.model_class).model
+        == "my-model"
+    )  # an explicit CF_MODEL still wins (v1)

@@ -447,3 +447,37 @@ def test_start_rejects_invalid_definitions_and_inputs() -> None:
     with pytest.raises(WorkflowValidationError, match="Pydantic model or an Artifact"):
         engine.start(definition, {"topic": "plain string"})  # type: ignore[dict-item]
     assert engine.list_runs(scope=Scope.local()) == []
+
+
+def test_run_until_settled_waits_out_rate_limits_within_bounds() -> None:
+    fake = FakeProvider("ok", failures=[RateLimitedError("slow", retry_after=400.0)] * 2)
+    engine, _ = make_engine(make_agent("a"), provider=fake)
+    waits: list[float] = []
+    paused = engine.start(workflow(step("a", "a")), topic())
+    assert paused.status is RunStatus.PAUSED
+    still = engine.run_until_settled(paused, max_resumes=3, max_wait_s=300, sleep=waits.append)
+    assert still.status is RunStatus.PAUSED and waits == []  # hint longer than allowed
+    done = engine.run_until_settled(paused, max_resumes=3, max_wait_s=500, sleep=waits.append)
+    assert done.ok and waits == [400.0, 400.0]
+
+
+def test_run_until_settled_never_resumes_budget_pauses() -> None:
+    engine, _ = make_engine(make_agent("a"), make_agent("b"))
+    definition = workflow(
+        step("a", "a"), step("b", "b", after=("a",)), limits=BudgetLimits(max_llm_calls=1)
+    )
+    paused = engine.start(definition, topic())
+    waits: list[float] = []
+    same = engine.run_until_settled(paused, max_resumes=3, sleep=waits.append)
+    assert same.status is RunStatus.PAUSED and waits == []
+
+
+def test_run_until_settled_never_resumes_an_exhausted_quota() -> None:
+    """D18: a daily quota's short hint frees room for about one call; resuming only crawls."""
+    fake = FakeProvider("ok", failures=[QuotaExhaustedError("tokens per day", resume_after=77.0)])
+    engine, _ = make_engine(make_agent("a"), provider=fake)
+    paused = engine.start(workflow(step("a", "a")), topic())
+    assert paused.record.status_reason == "quota exhausted"
+    waits: list[float] = []
+    same = engine.run_until_settled(paused, max_resumes=3, sleep=waits.append)
+    assert same.status is RunStatus.PAUSED and waits == []

@@ -24,6 +24,7 @@ from ..config import AgentRoute
 from ..domain.provenance import Evidence
 from ..domain.scope import Scope
 from ..exceptions import AgentError, RunCancelledError, ToolError, TruncatedResponseError
+from ..logging_config import get_logger
 from ..providers.base import (
     ChatMessage,
     CompletionRequest,
@@ -38,6 +39,7 @@ from .budget import Budget, BudgetLimits
 from .events import Event, EventBus, EventType
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
+_log = get_logger("context")
 
 
 class CancellationToken:
@@ -174,6 +176,11 @@ class RunContext:
             if self.call_counter is not None:
                 self.call_counter.charge(spec)
             self.budget.reserve_call(max_tokens)
+            _log.warning(
+                "%s: answer truncated at %d tokens; asking once for a concise version",
+                spec.id,
+                max_tokens,
+            )
             self.events.publish(
                 Event(
                     type=EventType.WARNING,

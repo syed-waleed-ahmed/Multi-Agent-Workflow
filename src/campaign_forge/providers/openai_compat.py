@@ -94,6 +94,7 @@ class OpenAICompatibleProvider(BaseProvider):
         max_retries: int = 4,
         max_backoff: float = DEFAULT_MAX_BACKOFF_SECONDS,
         client: OpenAI | None = None,
+        max_concurrency: int | None = None,
     ) -> None:
         """Create a provider.
 
@@ -117,6 +118,9 @@ class OpenAICompatibleProvider(BaseProvider):
         self._secrets = (api_key,) if api_key else ()
         self._log = get_logger(f"providers.{profile.name}")
         self._fallback_wait = wait_exponential_jitter(initial=1.0, max=max_backoff)
+        limit = max_concurrency or profile.max_concurrency
+        # Bounds requests in flight (each attempt), never the backoff sleeps between them.
+        self._slots = threading.BoundedSemaphore(limit) if limit else None
         # The SDK ships its own retry logic; disable it so this class is the
         # single source of truth for backoff and logging.
         self._client = client or OpenAI(
@@ -174,7 +178,10 @@ class OpenAICompatibleProvider(BaseProvider):
             nonlocal attempts
             with lock:
                 attempts += 1
-            return self._create_once(kwargs)
+            if self._slots is None:
+                return self._create_once(kwargs)
+            with self._slots:
+                return self._create_once(kwargs)
 
         start = time.perf_counter()
         response = self._make_retrying()(attempt)

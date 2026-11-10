@@ -306,4 +306,5 @@ class ProviderRouter:
             max_tokens=settings.max_tokens,
             timeout=settings.request_timeout,
             max_retries=settings.max_retries,
+            max_concurrency=settings.provider_concurrency.get(profile.name),
         )

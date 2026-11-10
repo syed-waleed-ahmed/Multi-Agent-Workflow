@@ -20,7 +20,7 @@ from ..core.registry import AgentRegistry
 from ..domain.artifacts import Artifact, ProducedBy
 from ..domain.usage import TokenUsage
 from ..models import CampaignBrief, CopyContent
-from ..providers.base import CompletionRequest, CompletionResponse
+from ..providers.base import CompletionRequest, CompletionResponse, ModelClass
 from .art_director import ArtDirectorAgent
 from .copywriter import CopywriterAgent
 from .manager import ManagerAgent
@@ -88,7 +88,14 @@ class ContextChatClient:
 
 
 def _spec(
-    agent_id: str, name: str, description: str, inputs: tuple[InputSpec, ...], output: str
+    agent_id: str,
+    name: str,
+    description: str,
+    inputs: tuple[InputSpec, ...],
+    output: str,
+    *,
+    max_tokens: int = 1000,
+    model_class: ModelClass = ModelClass.STANDARD,
 ) -> AgentSpec:
     return AgentSpec(
         id=agent_id,
@@ -99,8 +106,11 @@ def _spec(
         inputs=inputs,
         output_kind=output,
         prompt_version="v1",
+        model_class=model_class,
         # The v1 agents repair internally (one extra call), plus one truncation recovery each.
-        limits=AgentLimits(max_calls=4, max_repairs=1),
+        # Measured live: the v1 research answer needs ~940 completion tokens, so 800 truncated
+        # it. 1,000 fits and matches Groq's free-tier per-request cap (ADR-030).
+        limits=AgentLimits(max_tokens=max_tokens, max_calls=4, max_repairs=1),
     )
 
 
@@ -175,6 +185,11 @@ class LegacyManagerAgent:
         "Synthesises research, copy and visuals into the final Markdown campaign brief.",
         (_BRIEF, _RESEARCH, _COPY, _PROMPTS),
         FINAL_BRIEF_KIND,
+        # Measured live: the final brief overflows 1,000 tokens even when asked to be
+        # concise, and qwen3.8 is capped at 1,000 output tokens a minute on the free tier.
+        # The strong class (gpt-oss-120b on Groq) returned 2,500 in one request (D17).
+        max_tokens=2000,
+        model_class=ModelClass.STRONG,
     )
 
     def run(self, inputs: Mapping[str, Artifact], ctx: RunContext) -> AgentOutput:

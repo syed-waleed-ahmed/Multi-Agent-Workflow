@@ -22,7 +22,7 @@ from ...domain.artifacts import Artifact
 from ...domain.provenance import Basis, Evidence
 from ...evaluation.checks import REPORT_SECTIONS, missing_sections
 from ...exceptions import OutputParsingError
-from ...providers.base import CompletionRequest, CompletionResponse
+from ...providers.base import CompletionRequest, CompletionResponse, ModelClass
 from ...security.untrusted import with_untrusted_policy
 from ..schemas import (
     ADS_KIND,
@@ -90,6 +90,8 @@ class CampaignReporterAgent:
         capabilities=("reporting", "synthesis"),
         rubric=("on_brief", "completeness", "actionability", "clarity"),
         max_tokens=1600,
+        # A 350-600 word narrative does not fit a 1,000 output-token cap (D17, ADR-032).
+        model_class=ModelClass.STRONG,
     )
 
     def run(self, inputs: Mapping[str, Artifact], ctx: RunContext) -> AgentOutput:

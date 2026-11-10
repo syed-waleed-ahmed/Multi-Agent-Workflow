@@ -236,6 +236,8 @@ def run_workflow_entry(engine: WorkflowEngine, template_id: str, entry: dict[str
     try:
         brief = CampaignBrief(**entry["brief"])
         result = engine.start(get_template(template_id), {"brief": brief})
+        # Live free tiers pause on rate limits; unattended evals wait them out (bounded).
+        result = engine.run_until_settled(result, max_resumes=3)
     except Exception as exc:  # noqa: BLE001 - the eval must survive any failure
         return Score(
             id=entry["id"],

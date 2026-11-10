@@ -468,3 +468,30 @@ def test_request_too_large_is_a_bad_request_not_a_rate_limit() -> None:
     with pytest.raises(ProviderBadRequestError, match="Lower this agent's max_tokens"):
         provider.complete(_request())
     assert len(client.calls) == 1
+
+
+def test_concurrency_limit_serialises_requests() -> None:
+    import threading
+
+    active = {"now": 0, "peak": 0}
+    lock = threading.Lock()
+
+    def slow(_: dict[str, Any]) -> Any:
+        with lock:
+            active["now"] += 1
+            active["peak"] = max(active["peak"], active["now"])
+        time.sleep(0.05)  # patched to a no-op by the autouse fixture...
+        for _ in range(200_000):  # ...so burn a little real time instead
+            pass
+        with lock:
+            active["now"] -= 1
+        return _completion("ok")
+
+    assert GROQ.max_concurrency == 1
+    provider, _ = _provider(slow)
+    threads = [threading.Thread(target=provider.complete, args=(_request(),)) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert active["peak"] == 1

@@ -250,6 +250,40 @@ class WorkflowEngine:
         self._store.save(record)
         return self._execute(record)
 
+    def run_until_settled(
+        self,
+        result: RunResult,
+        *,
+        max_resumes: int,
+        max_wait_s: float = 300.0,
+        sleep: Callable[[float], None] = time.sleep,
+    ) -> RunResult:
+        """Resume a run paused by a rate limit, waiting out the provider's hint.
+
+        For unattended use (CLI ``--auto-resume``, the eval harness). It stops after
+        ``max_resumes``, on any other pause reason, or when the hint is longer than
+        ``max_wait_s``. Budget pauses and exhausted quotas are never auto-resumed: a
+        daily quota is a rolling window, so its short hint frees room for about one
+        call, and resuming would only crawl (D18, measured live).
+        """
+        for _ in range(max_resumes):
+            record = result.record
+            if record.status is not RunStatus.PAUSED or record.status_reason != "rate limited":
+                break
+            wait_s = record.resume_after if record.resume_after is not None else 60.0
+            if wait_s > max_wait_s:
+                break
+            self._log.info(
+                "Run %s paused (%s); resuming in %.0fs.",
+                record.run_id,
+                record.status_reason,
+                wait_s,
+            )
+            sleep(wait_s)
+            resumed = self.resume(record.run_id, scope=record.scope)
+            result = RunResult(resumed.record, {**result.errors, **resumed.errors})
+        return result
+
     def approve(
         self,
         run_id: str,

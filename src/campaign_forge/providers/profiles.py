@@ -57,6 +57,9 @@ class ProviderProfile(BaseModel):
     #: Hard per-request completion caps by model-id prefix. A request asking for more
     #: is clamped, because the provider would reject it outright.
     max_output_tokens: Mapping[str, int] = Field(default_factory=dict)
+    #: Requests in flight at once. On an output-token-capped free tier, parallel requests
+    #: only displace each other (and burn retries), so they are serialised.
+    max_concurrency: int | None = Field(default=None, ge=1, le=64)
     data_use_notice: str
     docs_url: str = ""
 
@@ -118,6 +121,9 @@ GROQ = ProviderProfile(
     # Verified live 2026-11-10: on the free tier qwen3.8-27b allows 1,000 output tokens per
     # minute, and a request whose max_tokens exceeds that is rejected ("Request too large").
     max_output_tokens={"qwen/qwen3.8": 1000},
+    # Verified live 2026-11-10: two parallel requests under the 1,000 output-token/minute cap
+    # exhausted their retries. One request at a time completes. Override: CF_PROVIDER_CONCURRENCY.
+    max_concurrency=1,
     free_tier=True,
     data_use_notice=(
         "Groq's data-use terms for the free plan were not verified on 2026-11-10. "
