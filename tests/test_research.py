@@ -108,7 +108,9 @@ def test_load_source_files(tmp_path: Path) -> None:
     assert docs[0].origin == "file:notes.md"
     evidence = bundle_evidence(SourceBundle(documents=tuple(docs)))
     assert [e.source for e in evidence] == ["user:notes.md", "user:data.csv", "user:facts.json"]
-    assert evidence == bundle_evidence(SourceBundle(documents=tuple(docs)))  # stable ids
+    again = bundle_evidence(SourceBundle(documents=tuple(docs)))
+    # Ids are content-derived and stable; retrieved_at legitimately differs between calls.
+    assert [e.id for e in evidence] == [e.id for e in again]
 
 
 def test_bad_source_files_are_configuration_errors(
