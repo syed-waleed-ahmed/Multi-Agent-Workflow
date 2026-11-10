@@ -332,15 +332,17 @@ def test_file_store_encodes_scope_and_rejects_bad_ids(tmp_path: Path) -> None:
 
 def test_sqlite_store_is_durable_and_rejects_bad_ids(tmp_path: Path) -> None:
     path = tmp_path / "state" / "campaign_forge.db"
-    with SqliteRunStore(path) as store:
-        store.save(_record())
-        for bad in ("../x", "x" * 80):
-            with pytest.raises(RunNotFoundError, match="Invalid run id"):
-                store.load(bad, Scope.local())
-    with SqliteRunStore(path) as reopened:
-        assert [r.run_id for r in reopened.list_runs(Scope.local())] == ["run-test"]
-        with pytest.raises(RunNotFoundError):
-            reopened.delete("run-other", Scope.local())
+    store = SqliteRunStore(path)
+    store.save(_record())
+    for bad in ("../x", "x" * 80):
+        with pytest.raises(RunNotFoundError, match="Invalid run id"):
+            store.load(bad, Scope.local())
+    reopened = SqliteRunStore(path)
+    assert [r.run_id for r in reopened.list_runs(Scope.local())] == ["run-test"]
+    with pytest.raises(RunNotFoundError):
+        reopened.delete("run-other", Scope.local())
+    with pytest.raises(ValueError, match="InMemoryRunStore"):
+        SqliteRunStore(":memory:")
 
 
 # --------------------------------------------------------------------------- #

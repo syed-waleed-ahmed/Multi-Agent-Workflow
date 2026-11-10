@@ -8,6 +8,7 @@ returns deterministic, agent-specific canned responses.
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,40 @@ def _isolated_memory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  # type: 
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _sqlite_connections_are_closed(monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    """Fail any test that leaves a package sqlite connection open.
+
+    Python 3.13 warns about unclosed connections (and the suite treats warnings as
+    errors), but only when the connection is garbage-collected, often during a later,
+    unrelated test. Tracking every connection the package opens catches leaks
+    deterministically, on every Python version.
+    """
+    from campaign_forge.memory import sqlite as memory_sqlite
+    from campaign_forge.orchestration import store as run_store
+
+    opened: list[sqlite3.Connection] = []
+    original = memory_sqlite.connect
+
+    def tracking(path: Path | str) -> sqlite3.Connection:
+        conn = original(path)
+        opened.append(conn)
+        return conn
+
+    monkeypatch.setattr(memory_sqlite, "connect", tracking)
+    monkeypatch.setattr(run_store, "connect", tracking)
+    yield
+    leaked = 0
+    for conn in opened:
+        try:
+            conn.execute("SELECT 1")
+        except sqlite3.ProgrammingError:
+            continue  # closed, as it should be
+        leaked += 1
+        conn.close()
+    assert leaked == 0, f"{leaked} sqlite connection(s) were left open"
 
 
 class FakeLLM:

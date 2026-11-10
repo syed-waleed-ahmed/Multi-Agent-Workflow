@@ -22,15 +22,17 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import sqlite3
 import tempfile
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from types import TracebackType
 from typing import Protocol
 
 from ..domain.scope import Scope
 from ..exceptions import RunNotFoundError
-from ..memory.sqlite import connect
+from ..memory.sqlite import IN_MEMORY, connect
 from .state import RUN_ID_PATTERN, RunRecord
 
 _RUN_ID_RE = re.compile(RUN_ID_PATTERN)
@@ -145,23 +147,41 @@ class JsonFileRunStore:
 
 
 class SqliteRunStore:
-    """One row per run in a ``runs`` table, keyed by scope and run id."""
+    """One row per run in a ``runs`` table, keyed by scope and run id.
+
+    Each operation opens and closes its own connection. Nothing is held open
+    between calls, so an engine built for one CLI command never leaks a
+    connection. Run writes are infrequent, so the cost is negligible.
+    """
 
     def __init__(self, path: Path | str) -> None:
-        self._conn = connect(path)
+        if str(path) == IN_MEMORY:
+            raise ValueError("SqliteRunStore needs a file; use InMemoryRunStore instead.")
+        self._path = Path(path)
         self._lock = threading.Lock()
-        with self._lock, self._conn:
-            self._conn.execute(
+        with self._connection() as conn:
+            conn.execute(
                 "CREATE TABLE IF NOT EXISTS runs ("
                 "org_id TEXT NOT NULL, user_id TEXT NOT NULL, run_id TEXT NOT NULL, "
                 "created_at TEXT NOT NULL, record_json TEXT NOT NULL, "
                 "PRIMARY KEY (org_id, user_id, run_id))"
             )
 
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        """A connection that commits on success, rolls back on error, and is always closed."""
+        with self._lock:
+            conn = connect(self._path)
+            try:
+                with conn:
+                    yield conn
+            finally:
+                conn.close()
+
     def save(self, record: RunRecord) -> None:
         _check_run_id(record.run_id)
-        with self._lock, self._conn:
-            self._conn.execute(
+        with self._connection() as conn:
+            conn.execute(
                 "INSERT INTO runs (org_id, user_id, run_id, created_at, record_json) "
                 "VALUES (?, ?, ?, ?, ?) ON CONFLICT (org_id, user_id, run_id) "
                 "DO UPDATE SET record_json = excluded.record_json",
@@ -176,8 +196,8 @@ class SqliteRunStore:
 
     def load(self, run_id: str, scope: Scope) -> RunRecord:
         _check_run_id(run_id)
-        with self._lock:
-            row = self._conn.execute(
+        with self._connection() as conn:
+            row = conn.execute(
                 "SELECT record_json FROM runs WHERE org_id = ? AND user_id = ? AND run_id = ?",
                 (scope.org_id, scope.user_id, run_id),
             ).fetchone()
@@ -186,8 +206,8 @@ class SqliteRunStore:
         return RunRecord.model_validate_json(row["record_json"])
 
     def list_runs(self, scope: Scope) -> list[RunRecord]:
-        with self._lock:
-            rows = self._conn.execute(
+        with self._connection() as conn:
+            rows = conn.execute(
                 "SELECT record_json FROM runs WHERE org_id = ? AND user_id = ?",
                 (scope.org_id, scope.user_id),
             ).fetchall()
@@ -196,25 +216,10 @@ class SqliteRunStore:
 
     def delete(self, run_id: str, scope: Scope) -> None:
         _check_run_id(run_id)
-        with self._lock, self._conn:
-            deleted = self._conn.execute(
+        with self._connection() as conn:
+            deleted = conn.execute(
                 "DELETE FROM runs WHERE org_id = ? AND user_id = ? AND run_id = ?",
                 (scope.org_id, scope.user_id, run_id),
             ).rowcount
         if not deleted:
             raise RunNotFoundError(f"Run {run_id!r} not found.")
-
-    def close(self) -> None:
-        with self._lock:
-            self._conn.close()
-
-    def __enter__(self) -> SqliteRunStore:
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        self.close()

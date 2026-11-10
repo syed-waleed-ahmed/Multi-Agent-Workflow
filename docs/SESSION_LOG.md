@@ -426,7 +426,10 @@ See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
 
 1. **Heredoc escaping.** The Bash heredoc trap from Session 3 struck twice: `\n` arrived as a real newline. The affected edits were redone with the Edit tool or with scripts written to files.
 2. **A LIKE-fallback test assumption.** Substring matching made `or` match inside "words". The behaviour is now documented, and the test text changed.
-3. **Test expectations.**
+3. **CI failure on Python 3.13 only.** Python 3.13 warns about sqlite connections that are garbage-collected unclosed, and the suite treats warnings as errors. The leaks surfaced in unrelated tests.
+   - Fix: `SqliteRunStore` now opens a connection per operation, and `SqliteMemoryStore` closes its connection when its constructor fails.
+   - An autouse fixture now fails any test that leaves a package connection open. It catches leaks on every Python version, and a deliberate leak was confirmed to fail it.
+4. **Test expectations.**
    - `full-campaign` now has a `brand_check` step that is skipped without a brand.
    - The registry has 15 agents.
    - The kind-to-responder map excludes agents whose responder is not their payload.

@@ -154,7 +154,14 @@ class SqliteMemoryStore:
         self._conn = connect(path)
         self._lock = threading.Lock()
         self._secrets = tuple(secrets)
-        self._fts = use_fts is not False and fts5_available(self._conn)
+        try:
+            self._fts = use_fts is not False and fts5_available(self._conn)
+            self._create_schema()
+        except BaseException:
+            self._conn.close()  # never leave a connection open behind a failed constructor
+            raise
+
+    def _create_schema(self) -> None:
         with self._tx() as conn:
             for statement in _SCHEMA:
                 conn.execute(statement)
