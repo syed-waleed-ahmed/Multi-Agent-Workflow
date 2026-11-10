@@ -15,7 +15,7 @@ Rules every page follows:
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Any
 
@@ -84,6 +84,12 @@ def current_session() -> AppSession:
         session = build_session()
         st.session_state[SESSION_KEY] = session
     return session
+
+
+def _choose(label: str, options: Sequence[str], **kwargs: Any) -> str | None:
+    """A select box over strings. ``None`` means nothing is selected (no options)."""
+    value = st.selectbox(label, list(options), **kwargs)
+    return value if isinstance(value, str) else None
 
 
 def _status(value: str) -> str:
@@ -235,7 +241,7 @@ def _brief_input(prefix: str) -> CampaignBrief | None:
 
 def _brand_input(session: AppSession, prefix: str) -> BrandProfile | None:
     brands = session.memory.list_brands(session.scope)
-    choice = st.selectbox(
+    choice = _choose(
         "Brand (optional)",
         [_NO_BRAND, *(b.name for b in brands)],
         key=f"{prefix}-brand",
@@ -315,7 +321,9 @@ def render_new_run(studio: Studio | None = None) -> None:
             return f"Custom: {custom.name} (from the Workflow Builder)"
         return f"{BUILTIN_TEMPLATES[template_id].name} ({template_id})"
 
-    template = st.selectbox("Workflow", options, format_func=label, key=f"{prefix}-template")
+    template = _choose("Workflow", options, format_func=label, key=f"{prefix}-template")
+    if template is None:
+        return
     definition = custom if template == _CUSTOM and custom is not None else get_template(template)
     st.caption(definition.description)
 
@@ -391,7 +399,9 @@ def render_inspector() -> None:
         return f"{run_id} - {record.definition.name} - {record.status.value.replace('_', ' ')}"
 
     index = ids.index(selected) if selected in ids else 0
-    run_id = st.selectbox("Run", ids, index=index, format_func=label, key="inspector-run")
+    run_id = _choose("Run", ids, index=index, format_func=label, key="inspector-run")
+    if run_id is None:
+        return
     st.session_state[SELECTED_RUN] = run_id
     if session.is_running(run_id):
         _live_progress(session, run_id)
@@ -473,14 +483,14 @@ def _render_record(session: AppSession, record: RunRecord) -> None:
                 st.text("\n".join(lines))
 
     st.subheader("Download")
-    cols = st.columns(3)
-    cols[0].download_button(
+    downloads = st.columns(3)
+    downloads[0].download_button(
         "Markdown", export_markdown(record), f"{run_id}.md", "text/markdown", key=f"md-{run_id}"
     )
-    cols[1].download_button(
+    downloads[1].download_button(
         "JSON", run_json(record), f"{run_id}.json", "application/json", key=f"json-{run_id}"
     )
-    cols[2].download_button(
+    downloads[2].download_button(
         "HTML", run_html(record), f"{run_id}.html", "text/html", key=f"html-{run_id}"
     )
 
@@ -535,8 +545,8 @@ def render_history() -> None:
             st.info("No runs yet.")
         else:
             st.dataframe(run_rows(runs), hide_index=True)
-            run_id = st.selectbox("Run", [r.run_id for r in runs], key="history-run")
-            if st.button("Open in Run Inspector", key="history-open"):
+            run_id = _choose("Run", [r.run_id for r in runs], key="history-run")
+            if st.button("Open in Run Inspector", key="history-open") and run_id:
                 _open_run(run_id)
     with campaigns_tab:
         query = st.text_input("Search past campaigns", key="history-query")
@@ -578,8 +588,8 @@ def render_brand_memory() -> None:
     )
     brands = session.memory.list_brands(session.scope)
     if brands:
-        name = st.selectbox("Stored brands", [b.name for b in brands], key="brand-selected")
-        brand = next(b for b in brands if b.name == name)
+        name = _choose("Stored brands", [b.name for b in brands], key="brand-selected")
+        brand = next((b for b in brands if b.name == name), brands[0])
         st.markdown(brand.to_markdown())
         cols = st.columns(2)
         cols[0].download_button(
@@ -631,9 +641,9 @@ def render_brand_memory() -> None:
         if not candidates:
             st.info("Run the brand-kit workflow to create a brand profile.")
         else:
-            run_id = st.selectbox("Run", [r.run_id for r in candidates], key="brand-run")
+            run_id = _choose("Run", [r.run_id for r in candidates], key="brand-run")
             if st.button("Save the run's brand", key="brand-save-run"):
-                record = next(r for r in candidates if r.run_id == run_id)
+                record = next((r for r in candidates if r.run_id == run_id), candidates[0])
                 artifact = next(a for a in record.outputs().values() if a.kind == BRAND_KIND)
                 _save_brand(session, lambda: artifact.as_model(BrandProfile))
 
@@ -686,13 +696,13 @@ def render_workflow_builder() -> None:
     template_tab, upload_tab = st.tabs(["From a template", "Upload JSON"])
     definition: WorkflowDefinition | None = None
     with template_tab:
-        template = st.selectbox(
+        template = _choose(
             "Template",
             list(BUILTIN_TEMPLATES),
             format_func=lambda t: f"{BUILTIN_TEMPLATES[t].name} ({t})",
             key="builder-template",
         )
-        definition = _plan_controls(get_template(template), "builder")
+        definition = _plan_controls(get_template(template or "full-campaign"), "builder")
     with upload_tab:
         uploaded = st.file_uploader("Workflow definition (JSON)", type=["json"], key="builder-file")
         if uploaded is not None:

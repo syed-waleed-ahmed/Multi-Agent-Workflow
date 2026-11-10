@@ -102,6 +102,13 @@ disallow_untyped_defs = true
 no_implicit_optional = true
 plugins = ["pydantic.mypy"]
 
+# Streamlit's annotations import numpy, pandas and pyarrow. New numpy stubs use the
+# Python 3.12 `type` statement, which mypy rejects when checking for 3.10, so these
+# third-party trees are not followed (they type as Any). Nothing here imports them.
+[[tool.mypy.overrides]]
+module = ["numpy", "numpy.*", "pandas", "pandas.*", "pyarrow", "pyarrow.*"]
+follow_imports = "skip"
+
 [tool.pytest.ini_options]
 minversion = "8.0"
 addopts = "-ra -q --strict-markers"
