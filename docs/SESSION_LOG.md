@@ -508,6 +508,10 @@ Because every step reads the brief, input edges crowded the graph, so they are n
 3. **AppTest page tracking.** After a programmatic `st.switch_page`, AppTest keeps rerunning the previous page. Tests re-select the page with a documented `_follow` helper. In a browser the URL follows the switch.
 4. **A wrong test assumption:** a Streamlit form keeps its values after submit. That is kept on purpose, so a validation error does not wipe the user's input.
 5. **The heredoc trap again:** `\1` in a regex became a control character. The edit was redone with the Edit tool.
+6. **CI failures on Python 3.11-3.13 only.** CI resolved Streamlit 1.67.0 and numpy 2.4.6, which do not install on 3.10, so the local 3.10 checks could not see them:
+   - Streamlit 1.67 types a select box as possibly `None`, and `st.columns(n)` as an n-tuple. All select boxes now go through `_choose()`, which returns `str | None`.
+   - numpy 2.4's stubs use the 3.12 `type` statement, which mypy rejects when checking for 3.10. mypy no longer follows numpy, pandas or pyarrow. `follow_imports_for_stubs` is needed for stub files: with it, 0 numpy stubs are parsed, down from 109.
+   - Both fixes were reproduced and verified in a local Python 3.11 environment that matches CI. CI is green on 3.10-3.13 at `f353cc2`.
 
 ### Tests run
 

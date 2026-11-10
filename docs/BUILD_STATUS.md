@@ -33,7 +33,7 @@
 | Offline eval, `full-campaign` | 10/10 (138 calls, 57,427 simulated tokens for 10 briefs) |
 | Offline eval, `brand-kit` | 10/10 (70 calls) |
 | Offline eval, `competitor-report` | 10/10 (50 calls) |
-| CI (GitHub Actions, 3.10-3.13) | **Green** at `30da120` (Session 5, run 42826810974), after one failure on 3.13 only was fixed (unclosed sqlite connections; see [SESSION_LOG.md](SESSION_LOG.md)) |
+| CI (GitHub Actions, 3.10-3.13) | **Green** at `f353cc2` (Session 6, run 42836385843), after two failures that only CI could show were fixed (Streamlit 1.67 typing and numpy stubs, which do not install on 3.10; see [SESSION_LOG.md](SESSION_LOG.md)) |
 
 The offline token counts are word-count estimates from the simulated provider, not real usage.
 
