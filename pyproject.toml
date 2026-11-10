@@ -43,8 +43,8 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
-    "ruff>=0.5",
-    "mypy>=1.10",
+    "ruff==0.15.20",  # pinned: matches .pre-commit-config.yaml; CI must check what was checked locally
+    "mypy==2.1.0",  # pinned for reproducible strict type-checking
 ]
 
 [project.urls]

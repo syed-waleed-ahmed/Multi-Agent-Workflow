@@ -271,13 +271,13 @@ brief = CampaignBrief(
     target_audience="eco-conscious young professionals",
     goal="drive summer sales",
     tone="fresh and energetic",
-    channels=["instagram", "email"],   # or a string: "instagram, email"
+    channels=["instagram", "email"],  # or a string: "instagram, email"
 )
 
 result = CampaignWorkflow().run(brief)
-print(result.final_brief)              # Markdown
+print(result.final_brief)  # Markdown
 print(result.marketing_copy.tagline)  # structured, validated copy
-result.save("outputs")                 # writes .md + .json
+result.save("outputs")  # writes .md + .json
 ```
 
 Concurrent batch:
