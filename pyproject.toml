@@ -108,6 +108,7 @@ plugins = ["pydantic.mypy"]
 [[tool.mypy.overrides]]
 module = ["numpy", "numpy.*", "pandas", "pandas.*", "pyarrow", "pyarrow.*"]
 follow_imports = "skip"
+follow_imports_for_stubs = true
 
 [tool.pytest.ini_options]
 minversion = "8.0"
