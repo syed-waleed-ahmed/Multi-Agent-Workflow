@@ -40,7 +40,7 @@ python evals/run_eval.py --offline   # end-to-end eval smoke (no API key)
 ```
 
 These are the same checks that run in continuous integration on Python 3.10,
-3.11, and 3.12. A pull request will not be merged unless all of them pass.
+3.11, 3.12, and 3.13. A pull request will not be merged unless all of them pass.
 
 The `pytest` suite is fully mocked and proves the plumbing; the eval harness in
 `evals/` measures real-world behaviour on a diverse, adversarial brief corpus
@@ -68,12 +68,35 @@ parsing, or the workflow.
 
 ## Adding a new agent
 
+There are two paths. New agents should use the 2.0 contract; the workflow
+engine runs them (see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), Part II).
+
+**v1 pipeline agent** (what the CLI runs today):
+
 1. Subclass `BaseAgent` in `src/campaign_forge/agents/`.
 2. Set the `name` and `system_prompt` class attributes (the base class enforces
    this at class-creation time).
 3. Implement `run(...)`, using `self._generate(...)` for model calls and the
-   helpers in `parsing.py` for structured output.
+   helpers in `parsing.py` for structured output. Wrap user-supplied or
+   model-generated content with `self._data(content, label)` so it is framed
+   as untrusted data.
 4. Wire the agent into `CampaignWorkflow` and add tests using `FakeLLM`.
+
+**2.0 agent** (registry-based):
+
+1. Define a class with a `spec: ClassVar[AgentSpec]` and a
+   `run(inputs, ctx) -> AgentOutput` method.
+2. Make every model call through `ctx.complete(...)` or
+   `ctx.complete_structured(...)`. These are budgeted, routed and recorded.
+3. Register the class with `registry.register`, or ship it from another
+   package through the `campaign_forge.agents` entry-point group.
+4. Use it in a `WorkflowDefinition` (a built-in template, or a JSON file
+   checked with `campaign-forge workflows validate`).
+5. Meet the definition of done in [`docs/AGENT_CATALOG.md`](docs/AGENT_CATALOG.md),
+   section 1, and test it with `FakeProvider` (see `tests/orchestration_helpers.py`).
+
+The import layers in `tests/security/test_architecture.py` apply to all code: a
+module may import only from its own layer or a lower one.
 
 ## Commit messages and pull requests
 

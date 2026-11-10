@@ -40,9 +40,9 @@ class CopywriterAgent(BaseAgent):
         """
         user_prompt = (
             "Campaign brief:\n"
-            f"{brief.as_prompt_context()}\n\n"
+            f"{self._data(brief.as_prompt_context(), 'campaign brief')}\n\n"
             "Research summary:\n"
-            f"{research_summary}\n\n"
+            f"{self._data(research_summary, 'research summary')}\n\n"
             "Task: create campaign copy and return it as a JSON object with EXACTLY "
             "these keys:\n"
             '- "tagline": one short catchy line.\n'

@@ -1,0 +1,504 @@
+"""Output contracts of the 2.0 agent library (docs/AGENT_CATALOG.md, wave 1).
+
+Each model is the payload of one artifact kind. Validation rules live on the
+models, so a violation becomes a precise error that the structured-output repair
+loop shows to the model (for example, "headline is 42 characters; Google Search
+allows 30"). Derived numbers are computed here by code, never by the model
+(ADR-011): budget shares, calendar weeks, ordering, normalised hashtags.
+
+Every model also offers ``digest()``, a compact text summary used as context for
+downstream agents. This keeps prompts small enough for free-tier
+tokens-per-minute limits. ``to_markdown()`` renders exact deliverables for the
+final report.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Annotated, Any, Literal
+
+from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
+
+from ..domain.provenance import Basis, Claim
+from ..domain.review import REVIEW_KIND, ReviewResult
+from ..models import MAX_CHANNELS, CampaignBrief
+
+BRIEF_KIND = "input.brief@1"
+AUDIENCE_KIND = "research.audience@1"
+MARKET_KIND = "research.market@1"
+POSITIONING_KIND = "strategy.positioning@1"
+PLAN_KIND = "strategy.plan@1"
+CORE_COPY_KIND = "content.core_copy@1"
+ADS_KIND = "content.ads@1"
+SOCIAL_KIND = "content.social@1"
+EMAIL_KIND = "content.email_sequence@1"
+VISUALS_KIND = "creative.visual_concepts@1"
+REPORT_KIND = "report.campaign_brief@1"
+
+Short = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=800)]
+Long = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+
+_HASHTAG_RE = re.compile(r"[^\w]+", re.UNICODE)
+
+
+def _clip(text: str, limit: int = 160) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= limit else text[: limit - 3].rstrip() + "..."
+
+
+def _cell(text: str) -> str:
+    """Escape a value for a Markdown table cell."""
+    return " ".join(str(text).split()).replace("|", "\\|")
+
+
+# --------------------------------------------------------------------------- #
+# Research
+# --------------------------------------------------------------------------- #
+class Finding(BaseModel):
+    """One research statement and its basis. Without research tools, never external."""
+
+    statement: Text
+    basis: Literal["user_provided", "model_assumption"] = "model_assumption"
+
+    def to_claim(self) -> Claim:
+        return Claim(statement=self.statement, basis=Basis(self.basis))
+
+
+class Persona(BaseModel):
+    name: Short
+    description: Text
+    motivations: list[Text] = Field(min_length=1, max_length=5)
+    pain_points: list[Text] = Field(min_length=1, max_length=5)
+    objections: list[Text] = Field(default_factory=list, max_length=5)
+    preferred_channels: list[Short] = Field(default_factory=list, max_length=6)
+
+
+class AudienceResearch(BaseModel):
+    summary: Long
+    personas: list[Persona] = Field(min_length=1, max_length=4)
+    insights: list[Finding] = Field(min_length=1, max_length=8)
+
+    def claims(self) -> tuple[Claim, ...]:
+        return tuple(f.to_claim() for f in self.insights)
+
+    def digest(self) -> str:
+        lines = [f"Audience summary: {_clip(self.summary, 300)}"]
+        for p in self.personas:
+            lines.append(
+                f"- Persona {p.name}: {_clip(p.description, 120)} Pain points: "
+                + "; ".join(_clip(x, 60) for x in p.pain_points[:3])
+            )
+        lines.extend(f"- Insight ({f.basis}): {_clip(f.statement, 140)}" for f in self.insights[:5])
+        return "\n".join(lines)
+
+
+class MarketResearch(BaseModel):
+    category_summary: Long
+    trends: list[Finding] = Field(min_length=1, max_length=6)
+    competitor_angles: list[Finding] = Field(default_factory=list, max_length=5)
+    positioning_angles: list[Text] = Field(min_length=2, max_length=5)
+
+    def claims(self) -> tuple[Claim, ...]:
+        return tuple(f.to_claim() for f in (*self.trends, *self.competitor_angles))
+
+    def digest(self) -> str:
+        lines = [f"Market: {_clip(self.category_summary, 300)}"]
+        lines.extend(f"- Trend ({t.basis}): {_clip(t.statement, 140)}" for t in self.trends[:4])
+        lines.extend(f"- Angle: {_clip(a, 140)}" for a in self.positioning_angles)
+        return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
+# Strategy
+# --------------------------------------------------------------------------- #
+class MessagingPillar(BaseModel):
+    name: Short
+    message: Text
+    proof_points_needed: list[Text] = Field(default_factory=list, max_length=4)
+
+
+class BenefitRung(BaseModel):
+    feature: Text
+    benefit: Text
+    emotional_payoff: Text
+
+
+class Positioning(BaseModel):
+    positioning_statement: Long
+    value_propositions: list[Text] = Field(min_length=2, max_length=4)
+    messaging_pillars: list[MessagingPillar] = Field(min_length=2, max_length=4)
+    benefit_ladder: list[BenefitRung] = Field(min_length=1, max_length=5)
+    differentiators: list[Text] = Field(min_length=1, max_length=5)
+
+    def digest(self) -> str:
+        lines = [f"Positioning: {_clip(self.positioning_statement, 300)}"]
+        lines.extend(f"- Value proposition: {_clip(v, 140)}" for v in self.value_propositions)
+        lines.extend(f"- Pillar {p.name}: {_clip(p.message, 140)}" for p in self.messaging_pillars)
+        return "\n".join(lines)
+
+
+class ChannelPlan(BaseModel):
+    channel: Short
+    role: Text
+    weight: int = Field(ge=1, le=10)
+    kpis: list[Text] = Field(min_length=1, max_length=4)
+    share_percent: int | None = Field(default=None, ge=0, le=100)
+
+
+class Phase(BaseModel):
+    name: Short
+    weeks: int = Field(ge=1, le=12)
+    focus: Text
+    activities: list[Text] = Field(min_length=1, max_length=6)
+
+
+def allocate_shares(weights: list[int]) -> list[int]:
+    """Integer percentages proportional to ``weights`` that sum to exactly 100.
+
+    Uses the largest-remainder method. ADR-011: the model proposes relative
+    weights; code does the arithmetic.
+    """
+    total = sum(weights)
+    raw = [w * 100 / total for w in weights]
+    shares = [int(r) for r in raw]
+    order = sorted(range(len(raw)), key=lambda i: (raw[i] - shares[i], -i), reverse=True)
+    for i in order[: 100 - sum(shares)]:
+        shares[i] += 1
+    return shares
+
+
+class MarketingPlan(BaseModel):
+    objectives: list[Text] = Field(min_length=1, max_length=4)
+    kpis: list[Text] = Field(min_length=1, max_length=6)
+    # As many channels as a brief may list (the model cannot be asked to drop any).
+    channels: list[ChannelPlan] = Field(min_length=1, max_length=MAX_CHANNELS)
+    phases: list[Phase] = Field(min_length=1, max_length=4)
+
+    @model_validator(mode="after")
+    def _derive(self) -> MarketingPlan:
+        names = [c.channel.casefold() for c in self.channels]
+        duplicates = sorted({n for n in names if names.count(n) > 1})
+        if duplicates:
+            raise ValueError(f"each channel must appear once; duplicated: {', '.join(duplicates)}")
+        for channel, share in zip(
+            self.channels, allocate_shares([c.weight for c in self.channels]), strict=True
+        ):
+            channel.share_percent = share
+        return self
+
+    @property
+    def total_weeks(self) -> int:
+        return sum(p.weeks for p in self.phases)
+
+    def digest(self) -> str:
+        lines = ["Objectives: " + "; ".join(_clip(o, 100) for o in self.objectives)]
+        lines.extend(
+            f"- {c.channel}: {c.share_percent}% of effort ({_clip(c.role, 100)})"
+            for c in self.channels
+        )
+        lines.append(f"Timeline: {self.total_weeks} weeks in {len(self.phases)} phase(s)")
+        return "\n".join(lines)
+
+    def to_markdown(self) -> str:
+        rows = "\n".join(
+            f"| {_cell(c.channel)} | {c.share_percent}% | {_cell(c.role)} | "
+            f"{_cell('; '.join(c.kpis))} |"
+            for c in self.channels
+        )
+        phases = "\n".join(
+            f"{i}. **{_cell(p.name)}** ({p.weeks} wk): {_cell(p.focus)}"
+            for i, p in enumerate(self.phases, 1)
+        )
+        return (
+            "| Channel | Share of effort | Role | KPIs |\n| --- | --- | --- | --- |\n"
+            f"{rows}\n\n{phases}"
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Content
+# --------------------------------------------------------------------------- #
+class CoreCopy(BaseModel):
+    tagline: Short
+    primary_message: Long
+    headlines: list[Short] = Field(min_length=3, max_length=5)
+    body_copy: Long
+    call_to_action: Short
+
+    def digest(self) -> str:
+        return (
+            f"Tagline: {self.tagline}\nPrimary message: {_clip(self.primary_message, 300)}\n"
+            f"Headlines: {' | '.join(self.headlines)}\nCall to action: {self.call_to_action}"
+        )
+
+    def to_markdown(self) -> str:
+        headlines = "\n".join(f"- {h}" for h in self.headlines)
+        return (
+            f"**Tagline:** {self.tagline}\n\n**Primary message:** {self.primary_message}\n\n"
+            f"**Headlines:**\n{headlines}\n\n**Body copy:** {self.body_copy}\n\n"
+            f"**Call to action:** {self.call_to_action}"
+        )
+
+
+#: Character limits by platform. "hard" limits are enforced (the repair loop asks
+#: the model to shorten); "recommended" limits only produce warnings. These are the
+#: commonly documented limits; verify a platform's current rules before publishing.
+PLATFORM_LIMITS: dict[str, dict[str, tuple[int, Literal["hard", "recommended"]]]] = {
+    "google_search": {"headline": (30, "hard"), "description": (90, "hard")},
+    "meta": {"headline": (40, "recommended"), "primary_text": (125, "recommended")},
+    "linkedin": {"headline": (70, "recommended"), "primary_text": (150, "recommended")},
+    "x": {"primary_text": (280, "hard")},
+    "tiktok": {"primary_text": (100, "recommended")},
+}
+
+
+def platform_key(name: str) -> str | None:
+    """Map a free-form platform or channel name to a key in :data:`PLATFORM_LIMITS`."""
+    value = name.casefold()
+    if "google" in value or value in {"search", "sem", "ppc"}:
+        return "google_search"
+    if any(k in value for k in ("facebook", "instagram", "meta")):
+        return "meta"
+    if "linkedin" in value:
+        return "linkedin"
+    if value in {"x", "twitter", "x (twitter)"} or "twitter" in value:
+        return "x"
+    if "tiktok" in value:
+        return "tiktok"
+    return None
+
+
+#: At most this many channels get ads (2 variants each fits the 12-variant pack).
+MAX_AD_CHANNELS = 6
+
+
+def ad_channels(channels: list[str]) -> list[str]:
+    """The channels that get ads: ad-capable platforms first, at most :data:`MAX_AD_CHANNELS`.
+
+    Chosen by code so the prompt and the output contract can never disagree.
+    """
+    capable = [c for c in channels if platform_key(c) is not None]
+    others = [c for c in channels if platform_key(c) is None]
+    return (capable + others)[:MAX_AD_CHANNELS]
+
+
+class AdVariant(BaseModel):
+    platform: Short
+    headline: Text
+    primary_text: Long
+    description: str = Field(default="", max_length=800)
+    call_to_action: Short
+    warnings: list[str] = Field(default_factory=list)
+
+
+class AdPack(BaseModel):
+    variants: list[AdVariant] = Field(min_length=2, max_length=12)
+
+    @model_validator(mode="after")
+    def _check_limits(self) -> AdPack:
+        violations: list[str] = []
+        for number, variant in enumerate(self.variants, 1):
+            variant.warnings = []
+            key = platform_key(variant.platform)
+            for field, (limit, kind) in PLATFORM_LIMITS.get(key or "", {}).items():
+                length = len(str(getattr(variant, field)))
+                if length <= limit:
+                    continue
+                message = (
+                    f"variant {number} ({variant.platform}) {field} is {length} characters; "
+                    f"the limit is {limit}"
+                )
+                if kind == "hard":
+                    violations.append(message)
+                else:
+                    variant.warnings.append(message + " (recommended)")
+        if violations:
+            raise ValueError("shorten these fields: " + "; ".join(violations))
+        return self
+
+    def digest(self) -> str:
+        return "\n".join(f"- {v.platform}: {_clip(v.headline, 80)}" for v in self.variants)
+
+    def to_markdown(self) -> str:
+        rows = "\n".join(
+            f"| {_cell(v.platform)} | {_cell(v.headline)} | {_cell(v.primary_text)} | "
+            f"{_cell(v.call_to_action)} | {_cell('; '.join(v.warnings)) or '-'} |"
+            for v in self.variants
+        )
+        return (
+            "| Platform | Headline | Primary text | CTA | Notes |\n"
+            "| --- | --- | --- | --- | --- |\n" + rows
+        )
+
+
+class SocialPost(BaseModel):
+    platform: Short
+    day: int = Field(ge=1, le=28)
+    format: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=30)]
+    caption: Long
+    hashtags: list[str] = Field(default_factory=list, max_length=12)
+    visual_idea: Text
+    week: int | None = None
+
+    @field_validator("hashtags", mode="before")
+    @classmethod
+    def _normalise_hashtags(cls, value: Any) -> list[str]:
+        items = value.split() if isinstance(value, str) else list(value or [])
+        tags: list[str] = []
+        for item in items:
+            tag = _HASHTAG_RE.sub("", str(item))
+            if tag and f"#{tag}".casefold() not in {t.casefold() for t in tags}:
+                tags.append(f"#{tag}")
+        return tags
+
+
+class SocialCalendar(BaseModel):
+    weeks: int = Field(ge=1, le=4)
+    posts: list[SocialPost] = Field(min_length=3, max_length=20)
+
+    @model_validator(mode="after")
+    def _derive(self) -> SocialCalendar:
+        problems = [
+            f"post on day {p.day} is outside the {self.weeks}-week calendar"
+            for p in self.posts
+            if p.day > self.weeks * 7
+        ]
+        problems.extend(
+            f"post on day {p.day} for {p.platform} is {len(p.caption)} characters; the limit is 280"
+            for p in self.posts
+            if platform_key(p.platform) == "x" and len(p.caption) > 280
+        )
+        if problems:
+            raise ValueError("; ".join(problems))
+        for post in self.posts:
+            post.week = (post.day - 1) // 7 + 1
+        self.posts.sort(key=lambda p: (p.day, p.platform.casefold()))
+        return self
+
+    def digest(self) -> str:
+        platforms = sorted({p.platform for p in self.posts})
+        return f"{len(self.posts)} posts over {self.weeks} week(s) on {', '.join(platforms)}"
+
+    def to_markdown(self) -> str:
+        rows = "\n".join(
+            f"| {p.week} | {p.day} | {_cell(p.platform)} | {_cell(p.format)} | "
+            f"{_cell(p.caption)} | "
+            f"{_cell(' '.join(p.hashtags)) or '-'} |"
+            for p in self.posts
+        )
+        return (
+            "| Week | Day | Platform | Format | Caption | Hashtags |\n"
+            "| --- | --- | --- | --- | --- | --- |\n" + rows
+        )
+
+
+class Email(BaseModel):
+    send_day: int = Field(ge=0, le=60)
+    purpose: Text
+    subject: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=150)]
+    preview_text: str = Field(default="", max_length=200)
+    body: Long
+    call_to_action: Short
+    warnings: list[str] = Field(default_factory=list)
+
+
+class EmailSequence(BaseModel):
+    name: Short
+    emails: list[Email] = Field(min_length=3, max_length=6)
+
+    @model_validator(mode="after")
+    def _derive(self) -> EmailSequence:
+        self.emails.sort(key=lambda e: e.send_day)
+        for email in self.emails:
+            email.warnings = []
+            if len(email.subject) > 60:
+                email.warnings.append(
+                    f"subject is {len(email.subject)} characters (60 recommended)"
+                )
+            if len(email.preview_text) > 90:
+                email.warnings.append(
+                    f"preview text is {len(email.preview_text)} characters (90 recommended)"
+                )
+        return self
+
+    def digest(self) -> str:
+        return f"{self.name}: " + "; ".join(
+            f"day {e.send_day} '{_clip(e.subject, 60)}'" for e in self.emails
+        )
+
+    def to_markdown(self) -> str:
+        rows = "\n".join(
+            f"| {e.send_day} | {_cell(e.purpose)} | {_cell(e.subject)} | "
+            f"{_cell(e.preview_text) or '-'} | "
+            f"{_cell(e.call_to_action)} |"
+            for e in self.emails
+        )
+        return (
+            f"**{_cell(self.name)}**\n\n| Day | Purpose | Subject | Preview | CTA |\n"
+            "| --- | --- | --- | --- | --- |\n" + rows
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Creative
+# --------------------------------------------------------------------------- #
+class VisualConcept(BaseModel):
+    name: Short
+    description: Text
+    image_prompt: str = Field(max_length=1000)
+    mood: Short
+    palette: list[Short] = Field(min_length=1, max_length=6)
+    aspect_ratio: str = Field(default="1:1", pattern=r"^\d{1,2}:\d{1,2}$")
+
+    @field_validator("image_prompt")
+    @classmethod
+    def _single_line_and_specific(cls, value: str) -> str:
+        line = " ".join(value.split())
+        if len(line.split()) < 8:
+            raise ValueError(
+                "image_prompt must be a specific single-line prompt of at least 8 words"
+            )
+        return line
+
+
+class VisualConcepts(BaseModel):
+    concepts: list[VisualConcept] = Field(min_length=3, max_length=5)
+
+    def digest(self) -> str:
+        return "\n".join(f"- {c.name}: {_clip(c.description, 120)}" for c in self.concepts)
+
+    def to_markdown(self) -> str:
+        return "\n".join(
+            f"{i}. **{_cell(c.name)}** ({c.aspect_ratio}, {_cell(c.mood)}): `{c.image_prompt}`"
+            for i, c in enumerate(self.concepts, 1)
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Report
+# --------------------------------------------------------------------------- #
+class CampaignReport(BaseModel):
+    title: Short
+    markdown: str = Field(min_length=1)
+    missing_inputs: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+
+    def digest(self) -> str:
+        return f"{self.title} ({len(self.markdown.split())} words)"
+
+
+MODELS_BY_KIND: dict[str, type[BaseModel]] = {
+    BRIEF_KIND: CampaignBrief,
+    AUDIENCE_KIND: AudienceResearch,
+    MARKET_KIND: MarketResearch,
+    POSITIONING_KIND: Positioning,
+    PLAN_KIND: MarketingPlan,
+    CORE_COPY_KIND: CoreCopy,
+    ADS_KIND: AdPack,
+    SOCIAL_KIND: SocialCalendar,
+    EMAIL_KIND: EmailSequence,
+    VISUALS_KIND: VisualConcepts,
+    REPORT_KIND: CampaignReport,
+    REVIEW_KIND: ReviewResult,
+}

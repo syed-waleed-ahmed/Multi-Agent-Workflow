@@ -29,7 +29,20 @@ ART_PAYLOAD = {
         "Studio product shot of the bottle with condensation, minimalist white background",
     ]
 }
-MANAGER_TEXT = "# Campaign Brief\n\n## Overview\nA fresh summer push for the EcoSip bottle."
+# A realistic six-section brief: the manager now rejects degenerate output (defect D4),
+# so the fixture must look like what the prompt asks for.
+MANAGER_TEXT = (
+    "# Campaign Brief\n\n"
+    "## Overview\nA fresh summer push for the EcoSip bottle across Instagram and email.\n\n"
+    "## Target Audience & Insights\nEco-conscious young professionals who want gear that "
+    "keeps up with long days and reflects their values.\n\n"
+    "## Positioning & Key Messages\nTagline: Sip Smart, Live Green. A bottle that keeps "
+    "drinks cold and the planet cooler.\n\n"
+    "## Example Headlines & Copy\n- Cold for 24 hours\n- Zero plastic, zero compromise\n\n"
+    "## Visual Direction\nSunlit beach scenes and clean studio shots in a vibrant teal "
+    "palette.\n\n"
+    "## Deliverables\nFour Instagram posts, two stories, and a three-email launch sequence."
+)
 
 
 class FakeLLM:

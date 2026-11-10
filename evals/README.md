@@ -31,6 +31,13 @@ green baseline):
 python evals/run_eval.py --offline
 ```
 
+**2.0 workflows.** `--workflow <template>` runs the same corpus through a 2.0 workflow (for example `full-campaign`). Every output artifact is scored with the deterministic checks in `campaign_forge.evaluation`. Failed optional steps and low critic scores are reported as warnings. The scorecard includes LLM calls and tokens:
+
+```bash
+python evals/run_eval.py --offline --workflow full-campaign   # key-free (CI)
+python evals/run_eval.py --workflow full-campaign --limit 2   # live, small and cheap
+```
+
 The process exits non-zero when the pass rate drops below `--min-pass-rate`
 (default `0.8`), so it can run as a nightly or pre-release gate. Add new briefs
 to `corpus.json` whenever you find an input shape the pipeline should handle.

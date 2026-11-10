@@ -27,10 +27,11 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
-    "openai>=1.30",
+    "openai>=1.30,<3",  # 3.x swapped httpx for httpx2; migrate deliberately (ADR-021)
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
     "tenacity>=8.2",

@@ -1,9 +1,16 @@
 """Command-line interface for Campaign Forge.
 
-Two subcommands:
+v1 subcommands:
 
-* ``run``   - generate a single campaign (flags or interactive prompts).
-* ``batch`` - generate many campaigns concurrently from a JSON file.
+* ``run``: generate a single campaign (flags or interactive prompts).
+* ``batch``: generate many campaigns concurrently from a JSON file.
+
+2.0 subcommands (see :mod:`campaign_forge.cli_runs`):
+
+* ``agents list``
+* ``workflows list|show|validate``
+* ``execute``
+* ``runs list|show|resume|approve|cancel``
 
 If no subcommand is given, ``run`` is assumed, preserving the original
 ``python main.py`` interactive experience.
@@ -21,11 +28,13 @@ from typing import Any
 from pydantic import ValidationError
 from rich.console import Console
 from rich.markdown import Markdown
+from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__
-from .config import Settings, get_settings
+from .cli_runs import add_engine_commands
+from .config import MAX_WORKERS, Settings, apply_overrides, get_settings
 from .exceptions import CampaignForgeError, ConfigurationError
 from .loaders import load_briefs
 from .logging_config import configure_logging
@@ -39,7 +48,7 @@ _BRIEF_FIELDS: list[tuple[str, str, str]] = [
     ("goal", "--goal", "Campaign goal"),
     ("tone", "--tone", "Desired tone (e.g. friendly, premium)"),
 ]
-_KNOWN_COMMANDS = {"run", "batch"}
+_KNOWN_COMMANDS = {"run", "batch", "agents", "workflows", "execute", "runs"}
 
 
 # --------------------------------------------------------------------------- #
@@ -56,6 +65,17 @@ def _add_brief_arguments(parser: argparse.ArgumentParser) -> None:
         dest="channels",
         help="Comma-separated channels (e.g. instagram, tiktok, email)",
     )
+
+
+def _worker_count(value: str) -> int:
+    """argparse type for ``--workers``: an integer within the Settings bounds (D1)."""
+    try:
+        count = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"expected an integer, got {value!r}") from None
+    if not 1 <= count <= MAX_WORKERS:
+        raise argparse.ArgumentTypeError(f"must be between 1 and {MAX_WORKERS}, got {count}")
+    return count
 
 
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
@@ -80,10 +100,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     batch_parser = subparsers.add_parser("batch", help="Generate campaigns from a JSON file")
     batch_parser.add_argument("input", type=Path, help="Path to a JSON file of briefs")
-    batch_parser.add_argument("--workers", type=int, help="Max concurrent campaigns")
+    batch_parser.add_argument(
+        "--workers", type=_worker_count, help=f"Max concurrent campaigns (1-{MAX_WORKERS})"
+    )
     _add_common_arguments(batch_parser)
     batch_parser.set_defaults(func=cmd_batch)
 
+    add_engine_commands(subparsers, _add_common_arguments)
     return parser
 
 
@@ -98,8 +121,8 @@ def _resolve_settings(args: argparse.Namespace) -> Settings:
         overrides["max_workers"] = args.workers
     if getattr(args, "verbose", False):
         overrides["log_level"] = "DEBUG"
-    settings = get_settings()
-    return settings.model_copy(update=overrides) if overrides else settings
+    # apply_overrides re-validates; model_copy(update=...) silently skipped validation (D1).
+    return apply_overrides(get_settings(), overrides)
 
 
 def _brief_from_args(args: argparse.Namespace, console: Console) -> CampaignBrief:
@@ -181,7 +204,7 @@ def _render_batch_summary(console: Console, results: list[BatchItemResult]) -> N
                 str(item.index + 1),
                 item.brief.product_name,
                 "[red]failed[/red]",
-                item.error or "unknown error",
+                escape(item.error or "unknown error"),
             )
     console.print(table)
 
@@ -191,7 +214,7 @@ def _render_batch_summary(console: Console, results: list[BatchItemResult]) -> N
 # --------------------------------------------------------------------------- #
 def cmd_run(args: argparse.Namespace, console: Console) -> int:
     settings = _resolve_settings(args)
-    configure_logging(settings.log_level)
+    configure_logging(settings.log_level, secrets=settings.secret_values())
     brief = _brief_from_args(args, console)
 
     workflow = CampaignWorkflow(settings)
@@ -214,18 +237,29 @@ def cmd_run(args: argparse.Namespace, console: Console) -> int:
 
 def cmd_batch(args: argparse.Namespace, console: Console) -> int:
     settings = _resolve_settings(args)
-    configure_logging(settings.log_level)
+    configure_logging(settings.log_level, secrets=settings.secret_values())
     briefs = load_briefs(args.input)
 
     lock = threading.Lock()
     completed = 0
     total = len(briefs)
+    saved: dict[int, Path] = {}
+    save_errors: dict[int, str] = {}
 
     def on_result(item: BatchItemResult) -> None:
+        # Save each campaign as soon as it finishes (D9): an interrupted or crashed
+        # batch keeps every result that was already complete.
         nonlocal completed
         with lock:
             completed += 1
+            if item.ok and item.result is not None and not args.no_save:
+                try:
+                    saved[item.index] = item.result.save(settings.output_dir)
+                except OSError as exc:
+                    save_errors[item.index] = f"could not save: {exc}"
             status = "[green]ok[/green]" if item.ok else "[red]failed[/red]"
+            if item.index in save_errors:
+                status = "[red]not saved[/red]"
             if not args.json:
                 console.print(
                     f"[dim]({completed}/{total})[/dim] {item.brief.product_name}: {status}"
@@ -234,19 +268,13 @@ def cmd_batch(args: argparse.Namespace, console: Console) -> int:
     workflow = CampaignWorkflow(settings)
     results = workflow.run_batch(briefs, max_workers=args.workers, on_result=on_result)
 
-    saved: dict[int, Path] = {}
-    if not args.no_save:
-        for item in results:
-            if item.ok and item.result is not None:
-                saved[item.index] = item.result.save(settings.output_dir)
-
     if args.json:
         payload = [
             {
                 "index": item.index,
                 "product_name": item.brief.product_name,
                 "ok": item.ok,
-                "error": item.error,
+                "error": item.error or save_errors.get(item.index),
                 "saved_path": str(saved[item.index]) if item.index in saved else None,
                 "result": item.result.to_dict() if item.result is not None else None,
             }
@@ -257,8 +285,10 @@ def cmd_batch(args: argparse.Namespace, console: Console) -> int:
         _render_batch_summary(console, results)
         if saved:
             console.print(f"[green]Saved {len(saved)} brief(s) to[/green] {settings.output_dir}")
+        for index, message in sorted(save_errors.items()):
+            console.print(f"[red]Brief {index + 1}:[/red] {escape(message)}")
 
-    return 0 if all(item.ok for item in results) else 1
+    return 0 if all(item.ok for item in results) and not save_errors else 1
 
 
 # --------------------------------------------------------------------------- #
@@ -279,12 +309,17 @@ def main(argv: list[str] | None = None) -> int:
     console = Console()
 
     try:
-        exit_code: int = args.func(args, console)
+        if getattr(args, "needs_settings", False):
+            settings = _resolve_settings(args)
+            configure_logging(settings.log_level, secrets=settings.secret_values())
+            exit_code: int = args.func(args, console, settings)
+        else:
+            exit_code = args.func(args, console)
     except ConfigurationError as exc:
-        console.print(f"[bold red]Configuration error:[/bold red] {exc}")
+        console.print(f"[bold red]Configuration error:[/bold red] {escape(str(exc))}")
         return 2
     except CampaignForgeError as exc:
-        console.print(f"[bold red]Error:[/bold red] {exc}")
+        console.print(f"[bold red]Error:[/bold red] {escape(str(exc))}")
         return 1
     except KeyboardInterrupt:
         console.print("\n[yellow]Interrupted.[/yellow]")

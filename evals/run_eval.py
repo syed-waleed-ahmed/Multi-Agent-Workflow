@@ -35,7 +35,11 @@ from pathlib import Path
 from typing import Any
 
 from campaign_forge import CampaignBrief, CampaignResult, CampaignWorkflow
-from campaign_forge.config import Settings, get_settings
+from campaign_forge.config import Settings, apply_overrides, get_settings
+from campaign_forge.evaluation import check_artifact, grounded
+from campaign_forge.evaluation.offline import offline_responder
+from campaign_forge.orchestration import WorkflowEngine, default_registry, get_template
+from campaign_forge.providers import FakeProvider, ProviderRouter
 
 DEFAULT_CORPUS = Path(__file__).with_name("corpus.json")
 _PRODUCT_NAME_RE = re.compile(r"Product name:\s*(.+)")
@@ -89,7 +93,11 @@ class _OfflineLLM:
             "This offline placeholder brief is long enough to pass the substance "
             "check and demonstrates that the manager synthesised the pipeline "
             "context into a coherent, hand-off-ready document.\n\n"
-            "## Recommended next steps\nBrief the design team and schedule the launch."
+            "## Target Audience & Insights\nMotivated buyers who value quality and trust.\n\n"
+            "## Positioning & Key Messages\nMade for the way you live.\n\n"
+            "## Example Headlines & Copy\n- Meet your new favourite\n- Built to last\n\n"
+            "## Visual Direction\nClean studio shots and warm lifestyle scenes.\n\n"
+            "## Deliverables\nBrief the design team and schedule the launch."
         )
 
 
@@ -112,6 +120,8 @@ class Score:
     duration_s: float
     checks: list[Check] = field(default_factory=list)
     error: str | None = None
+    llm_calls: int = 0
+    tokens: int = 0
 
     @property
     def passed(self) -> bool:
@@ -132,14 +142,9 @@ class Score:
         return ""
 
 
-def _grounded(product_name: str, final_brief: str) -> bool:
-    """True if the brief plausibly references the product it is meant to be about."""
-    haystack = final_brief.casefold()
-    ascii_word = re.search(r"[a-z0-9]{3,}", product_name.casefold())
-    if ascii_word:
-        return ascii_word.group(0) in haystack
-    # No Latin token (e.g. Chinese/Arabic name): look for the raw name.
-    return product_name.strip().casefold() in haystack
+# The grounding check lives in campaign_forge.evaluation (fixes D7); kept here as an
+# alias for backwards compatibility.
+_grounded = grounded
 
 
 def score_result(entry: dict[str, Any], result: CampaignResult, duration: float) -> Score:
@@ -223,13 +228,79 @@ def run_entry(workflow: CampaignWorkflow, entry: dict[str, Any]) -> Score:
     return score_result(entry, result, time.perf_counter() - start)
 
 
+def run_workflow_entry(engine: WorkflowEngine, template_id: str, entry: dict[str, Any]) -> Score:
+    """Run one brief through a 2.0 workflow; score every output with deterministic checks."""
+    start = time.perf_counter()
+    category = entry.get("category", "?")
+    try:
+        brief = CampaignBrief(**entry["brief"])
+        result = engine.start(get_template(template_id), {"brief": brief})
+    except Exception as exc:  # noqa: BLE001 - the eval must survive any failure
+        return Score(
+            id=entry["id"],
+            category=category,
+            completed=False,
+            duration_s=time.perf_counter() - start,
+            error=f"{type(exc).__name__}: {exc}",
+        )
+    record = result.record
+    checks = [
+        Check(
+            "completed",
+            result.ok,
+            critical=True,
+            detail=f"run {record.status.value}: {record.status_reason or ''}".strip(),
+        )
+    ]
+    for name, artifact in sorted(result.outputs().items()):
+        for check in check_artifact(artifact, brief):
+            checks.append(Check(f"{name}.{check.name}", check.passed, check.critical, check.detail))
+    for step_id, state in record.steps.items():
+        if state.status.value == "failed":
+            # An optional step can fail without failing the run; report it all the same.
+            checks.append(Check(f"{step_id}.step", False, critical=False, detail=state.error or ""))
+        if state.review_score is not None and state.review_score < 0.7:
+            checks.append(
+                Check(
+                    f"{step_id}.review",
+                    False,
+                    critical=False,
+                    detail=(
+                        f"critic score {state.review_score:.2f} after {state.revisions} revision(s)"
+                    ),
+                )
+            )
+    return Score(
+        id=entry["id"],
+        category=category,
+        completed=True,
+        duration_s=time.perf_counter() - start,
+        checks=checks,
+        llm_calls=record.llm_calls,
+        tokens=record.usage.total_tokens,
+    )
+
+
+def build_engine(offline: bool, model: str | None) -> tuple[WorkflowEngine, str]:
+    """An engine on the offline responder, or on the configured live provider."""
+    if offline:
+        settings = Settings(_env_file=None, provider="fake")  # type: ignore[call-arg]
+        router = ProviderRouter(settings, providers={"fake": FakeProvider(offline_responder)})
+        return WorkflowEngine(default_registry(), router), "offline responder"
+    settings = get_settings()
+    if model:
+        settings = apply_overrides(settings, {"model": model})
+    router = ProviderRouter(settings)
+    return WorkflowEngine(default_registry(), router), f"{router.global_provider} {settings.model}"
+
+
 def build_workflow(offline: bool, model: str | None) -> CampaignWorkflow:
     if offline:
         settings = Settings(_env_file=None, groq_api_key="offline", model=model or "offline-fake")  # type: ignore[call-arg]
         return CampaignWorkflow(settings, llm=_OfflineLLM())  # type: ignore[arg-type]
     settings = get_settings()
     if model:
-        settings = settings.model_copy(update={"model": model})
+        settings = apply_overrides(settings, {"model": model})
     return CampaignWorkflow(settings)
 
 
@@ -261,6 +332,8 @@ def summarise(scores: list[Score]) -> dict[str, Any]:
         "completion_rate": round(completed / total, 3) if total else 0.0,
         "warnings": warnings,
         "total_time_s": round(sum(s.duration_s for s in scores), 1),
+        "llm_calls": sum(s.llm_calls for s in scores),
+        "tokens": sum(s.tokens for s in scores),
     }
 
 
@@ -275,6 +348,8 @@ def to_report(scores: list[Score]) -> dict[str, Any]:
                 "completed": s.completed,
                 "error": s.error,
                 "duration_s": round(s.duration_s, 2),
+                "llm_calls": s.llm_calls,
+                "tokens": s.tokens,
                 "checks": [
                     {"name": c.name, "ok": c.ok, "critical": c.critical, "detail": c.detail}
                     for c in s.checks
@@ -298,24 +373,37 @@ def main(argv: list[str] | None = None) -> int:
         help="Exit non-zero if the pass rate is below this (0-1).",
     )
     parser.add_argument("--report", type=Path, default=None, help="Write a JSON report here.")
+    parser.add_argument(
+        "--workflow",
+        default="classic",
+        help="'classic' (v1 CampaignWorkflow, default) or a 2.0 template id, e.g. full-campaign.",
+    )
     args = parser.parse_args(argv)
 
     entries: list[dict[str, Any]] = json.loads(args.corpus.read_text(encoding="utf-8"))
     if args.limit is not None:
         entries = entries[: args.limit]
 
-    workflow = build_workflow(args.offline, args.model)
-    mode = "offline fake model" if args.offline else f"model={workflow._llm.model}"  # noqa: SLF001
-    print(f"Running {len(entries)} briefs ({mode})...\n")
-
-    scores = [run_entry(workflow, entry) for entry in entries]
+    if args.workflow == "classic":
+        workflow = build_workflow(args.offline, args.model)
+        mode = (
+            "offline fake model" if args.offline else f"model={args.model or get_settings().model}"
+        )
+        print(f"Running {len(entries)} briefs through the v1 pipeline ({mode})...\n")
+        scores = [run_entry(workflow, entry) for entry in entries]
+    else:
+        get_template(args.workflow)  # fail fast on an unknown template
+        engine, mode = build_engine(args.offline, args.model)
+        print(f"Running {len(entries)} briefs through {args.workflow} ({mode})...\n")
+        scores = [run_workflow_entry(engine, args.workflow, entry) for entry in entries]
 
     print_scorecard(scores)
     summary = summarise(scores)
     print(
         f"\n{summary['passed']}/{summary['total']} passed "
         f"({summary['pass_rate']:.0%}) - {summary['completed']}/{summary['total']} completed, "
-        f"{summary['warnings']} quality warning(s), {summary['total_time_s']}s total."
+        f"{summary['warnings']} quality warning(s), {summary['total_time_s']}s total, "
+        f"{summary['llm_calls']} LLM call(s), {summary['tokens']} tokens."
     )
 
     if args.report is not None:

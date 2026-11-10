@@ -2,10 +2,10 @@
 
 **A production-grade, multi-agent workflow that turns a one-line product brief into a complete, ready-to-hand-off marketing campaign.**
 
-[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![Lint: ruff](https://img.shields.io/badge/lint-ruff-261230)](https://github.com/astral-sh/ruff)
 [![Types: mypy strict](https://img.shields.io/badge/types-mypy%20strict-blue)](http://mypy-lang.org/)
-[![Coverage](https://img.shields.io/badge/coverage-94%25-brightgreen)](#testing)
+[![Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen)](#testing)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 Campaign Forge coordinates four specialised AI agents, each owning one stage of the pipeline, exactly like a real marketing team:
@@ -58,7 +58,7 @@ It runs on any **OpenAI-compatible** endpoint and defaults to [Groq](https://gro
 - **Measured, not just mocked.** Beyond the offline unit suite, an [evaluation harness](#evaluation) runs a diverse, adversarial brief corpus end-to-end and scores completion, grounding, and prompt-injection resistance - so real-world behaviour is a tracked number, not a guess.
 - **Import-safe.** No side effects at import time, so the package is safe to embed as a library. Configuration is lazy and comes from environment variables or a `.env` file.
 - **Fully typed and linted.** `mypy --strict` and `ruff` pass cleanly; the package ships a `py.typed` marker.
-- **Tested without a network.** The suite is fully mocked (no API key, no calls) and covers retries, batch isolation, output validation, and the CLI. Continuous integration runs the same gates on Python 3.10-3.12.
+- **Tested without a network.** The suite is fully mocked (no API key, no calls) and covers retries, batch isolation, output validation, and the CLI. Continuous integration runs the same gates on Python 3.10-3.13.
 
 ---
 
@@ -153,7 +153,7 @@ Every other setting is optional and overrides a sensible default. Provider-agnos
 | --- | --- | --- |
 | `GROQ_API_KEY` / `OPENAI_API_KEY` | (required) | API key; one of the two must be set |
 | `CF_BASE_URL` | `https://api.groq.com/openai/v1` | OpenAI-compatible endpoint |
-| `CF_MODEL` | `llama-3.1-8b-instant` | Model used by every agent |
+| `CF_MODEL` | `qwen/qwen3.8-27b` | Model used by every agent (Groq; verified 2026-11-10) |
 | `CF_TEMPERATURE` | `0.5` | Sampling temperature (0.0-2.0) |
 | `CF_MAX_TOKENS` | `800` | Max tokens per response |
 | `CF_REQUEST_TIMEOUT` | `60` | Per-request timeout, seconds |
@@ -161,6 +161,18 @@ Every other setting is optional and overrides a sensible default. Provider-agnos
 | `CF_MAX_WORKERS` | `4` | Concurrent campaigns in batch mode |
 | `CF_OUTPUT_DIR` | `outputs` | Directory where briefs are saved |
 | `CF_LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
+
+The 2.0 provider layer adds the settings below. Every command, including the v1 `run` and `batch`, now goes through the 2.0 provider router, so `CF_FREE_ONLY` applies everywhere and per-agent overrides use the v1 agent names (`research`, `copywriter`, `art_director`, `manager`). The full explanation is in [`.env.example`](.env.example) and [`docs/FREE_TIER_POLICY.md`](docs/FREE_TIER_POLICY.md).
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | (unset) | Keys for the other free-tier providers |
+| `CF_PROVIDER` | inferred from `CF_BASE_URL` | Global provider: `groq`, `gemini`, `mistral`, `cloudflare`, `fake` |
+| `CF_FREE_ONLY` | `true` | Refuse providers that are not free-tier eligible |
+| `CF_PROVIDER_MODELS` | `{}` | JSON map of provider to model id |
+| `CF_FALLBACK_PROVIDERS` | (empty) | Comma-separated fallbacks, used only after a quota or rate-limit failure |
+| `CF_AGENT_OVERRIDES` | `{}` | JSON map of agent to `provider` / `model` / `temperature` / `max_tokens` |
+| `CF_RUNS_DIR` | `outputs/runs` | Where `execute` checkpoints runs (JSON, one file per run) |
 
 ---
 
@@ -197,6 +209,51 @@ campaign-forge batch examples/batch_campaigns.json --workers 8
 Each brief runs in isolation. Failures are reported per item and the process exits non-zero if any brief fails, which makes it safe to use in automation and CI.
 
 You can also run without installing via `python -m campaign_forge ...` or the legacy `python main.py ...`.
+
+### Workflow engine (2.0 preview)
+
+The v1 commands run on a new workflow engine, which can also be used directly:
+
+- Each step is checkpointed to `CF_RUNS_DIR`.
+- A run that hits a quota pauses instead of failing, and resumes without repeating finished steps.
+- A step can wait for human approval.
+
+```bash
+campaign-forge agents list                                   # registered agents
+campaign-forge workflows list                                # built-in workflow templates
+campaign-forge workflows validate my_flow.json               # check a custom JSON workflow
+campaign-forge execute full-campaign --brief brief.json      # 11-agent campaign, reviewed
+campaign-forge execute classic-campaign --brief brief.json   # the v1 pipeline
+campaign-forge runs list                                     # stored runs
+campaign-forge runs show <run-id>                            # steps, usage, errors
+campaign-forge runs resume <run-id>                          # continue a paused or failed run
+campaign-forge runs approve <run-id> <step> [--reject]       # approval gates
+campaign-forge runs cancel <run-id>
+```
+
+`execute`, `runs resume` and `runs approve` exit with:
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Completed |
+| `1` | Failed or cancelled |
+| `3` | Needs action (paused, or waiting for approval) |
+
+Built-in workflows:
+
+| Workflow | What it produces |
+| --- | --- |
+| `full-campaign` | Research, positioning, a channel plan, reviewed copy and ads, a social calendar, an email sequence, visual concepts, and a final report |
+| `ad-pack` | Reviewed ads |
+| `social-calendar` | A two-week social calendar |
+| `email-sequence` | An email sequence |
+| `classic-campaign` | The v1 pipeline |
+
+The agents are described in [`docs/AGENT_CATALOG.md`](docs/AGENT_CATALOG.md).
+
+To try it with no API key, set `CF_PROVIDER=fake`. Every agent is then answered by a deterministic offline responder, and the output is labeled **SIMULATED**.
+
+The design is in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (Part II).
 
 ### As a library
 
@@ -270,7 +327,7 @@ The test suite is **fully mocked**: it needs no API key and makes no network cal
 pytest --cov=campaign_forge --cov-report=term-missing
 ```
 
-Continuous integration runs `ruff`, `ruff format --check`, `mypy src`, `pytest` (with a 90% coverage floor), and the offline evaluation smoke test on Python 3.10, 3.11, and 3.12.
+Continuous integration runs `ruff`, `ruff format --check`, `mypy src`, `pytest` (with a 90% coverage floor), and the offline evaluation smoke test on Python 3.10, 3.11, 3.12, and 3.13.
 
 ---
 
@@ -280,6 +337,7 @@ The mocked suite proves the plumbing but never asks a real model whether an unus
 
 ```bash
 python evals/run_eval.py --offline          # no API key: deterministic smoke test
+python evals/run_eval.py --offline --workflow full-campaign   # score a 2.0 workflow
 python evals/run_eval.py                     # live: real success rate on your model
 python evals/run_eval.py --report out.json   # also write a machine-readable scorecard
 ```
@@ -298,11 +356,23 @@ The process exits non-zero when the pass rate falls below `--min-pass-rate` (def
 
 ## Roadmap
 
-- Pluggable agents and a configurable pipeline definition
-- Async LLM client for higher batch throughput
-- Optional PDF export of the final brief
-- Streamlit / Gradio web UI
-- Automatic image generation from the art-director prompts
+Campaign Forge 2.0 is in planning. The goal is a declarative multi-agent engine with:
+
+- an agent registry
+- multi-provider free-tier support
+- evidence-backed research
+- memory
+- a Streamlit demo and a FastAPI service
+
+The plan, the decisions behind it and the current progress are documented in:
+
+- [`docs/ROADMAP.md`](docs/ROADMAP.md): milestones and sessions
+- [`docs/BUILD_STATUS.md`](docs/BUILD_STATUS.md): current progress
+- [`docs/PROJECT_AUDIT.md`](docs/PROJECT_AUDIT.md): v1.1 baseline and known defects
+- [`docs/DECISIONS.md`](docs/DECISIONS.md): architecture decision records
+- [`docs/FREE_TIER_POLICY.md`](docs/FREE_TIER_POLICY.md): how the project stays free to run
+
+Everything above this section describes v1.1.0 as implemented.
 
 ---
 

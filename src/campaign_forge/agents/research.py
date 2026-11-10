@@ -23,7 +23,7 @@ class ResearchAgent(BaseAgent):
         """Return a Markdown research summary for the given brief."""
         user_prompt = (
             "Campaign brief:\n"
-            f"{brief.as_prompt_context()}\n\n"
+            f"{self._data(brief.as_prompt_context(), 'campaign brief')}\n\n"
             "Task:\n"
             "1. Describe the target audience (demographics + interests).\n"
             "2. List their main pain points and desires.\n"

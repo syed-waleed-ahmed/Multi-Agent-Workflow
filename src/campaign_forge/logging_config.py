@@ -9,25 +9,35 @@ handlers itself, so importing the package stays quiet until an application
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 
 from rich.console import Console
 from rich.logging import RichHandler
 
+from .security.redaction import RedactingFilter
+
 _LOGGER_NAMESPACE = "campaign_forge"
 _configured = False
+_redactor = RedactingFilter()
 
 
-def configure_logging(level: str = "INFO") -> None:
-    """Configure the package logger with a Rich console handler.
+def configure_logging(level: str = "INFO", *, secrets: Iterable[str] = ()) -> None:
+    """Configure the package logger with a Rich console handler and secret redaction.
 
-    Idempotent: calling it more than once only updates the level. Only the
-    ``campaign_forge`` logger is touched, so we never hijack the root logger of
-    a host application that imports this package as a library.
+    Idempotent: calling it again updates the level and adds any new secrets to
+    redact. Only the ``campaign_forge`` logger is touched, so we never hijack the
+    root logger of a host application that imports this package as a library.
+
+    Args:
+        level: Log level name.
+        secrets: Secret values (e.g. ``Settings.secret_values()``) to redact
+            verbatim. Key-shaped strings are redacted regardless.
     """
     global _configured
     logger = logging.getLogger(_LOGGER_NAMESPACE)
     logger.setLevel(level.upper())
     logger.propagate = False
+    _redactor.add_secrets(secrets)
 
     if not _configured:
         # Logs go to stderr so that stdout stays reserved for data (e.g. --json).
@@ -39,6 +49,7 @@ def configure_logging(level: str = "INFO") -> None:
             omit_repeated_times=False,
         )
         handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
+        handler.addFilter(_redactor)
         logger.addHandler(handler)
         _configured = True
 

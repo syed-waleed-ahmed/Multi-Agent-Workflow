@@ -1,9 +1,19 @@
-"""The orchestrator that wires the four agents into an end-to-end pipeline.
+"""The v1 ``CampaignWorkflow`` API, now a facade over the 2.0 workflow engine.
 
-:class:`CampaignWorkflow` runs the agents sequentially for a single brief and,
-crucially for larger workloads, exposes :meth:`run_batch` which fans many briefs
-out across a thread pool with **per-item error isolation** - one failing
-campaign never aborts the rest of the batch.
+:class:`CampaignWorkflow` runs the ``classic-campaign`` template (research, then
+copy, then art direction, then the final brief) for one brief, and returns the v1
+:class:`~campaign_forge.models.CampaignResult`.
+
+:meth:`run_batch` fans many briefs across a thread pool with **per-item error
+isolation**: one failing campaign never aborts the rest of the batch.
+
+Running on the engine means every v1 call is now:
+
+* budgeted;
+* routed under ``FREE_ONLY`` policy (ADR-020);
+* recorded with token usage.
+
+The signature, the results and the error types are unchanged (ADR-001).
 """
 
 from __future__ import annotations
@@ -13,11 +23,17 @@ from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
-from .agents import ArtDirectorAgent, CopywriterAgent, ManagerAgent, ResearchAgent
-from .config import Settings, get_settings
-from .llm import LLMClient
+from .agents.legacy import PromptListPayload, TextPayload
+from .config import MAX_WORKERS, Settings, get_settings
+from .core.registry import AgentRegistry
+from .exceptions import CampaignForgeError, ConfigurationError
 from .logging_config import get_logger
-from .models import CampaignBrief, CampaignResult
+from .models import CampaignBrief, CampaignResult, CopyContent
+from .orchestration.engine import RunResult, WorkflowEngine
+from .orchestration.store import InMemoryRunStore
+from .orchestration.templates import classic_campaign, default_registry
+from .providers.compat import ChatClient, LegacyClientProvider
+from .providers.router import ProviderRouter
 
 
 @dataclass(slots=True)
@@ -44,47 +60,78 @@ class CampaignWorkflow:
         self,
         settings: Settings | None = None,
         *,
-        llm: LLMClient | None = None,
+        llm: ChatClient | None = None,
+        registry: AgentRegistry | None = None,
     ) -> None:
         """Create a workflow.
 
         Args:
             settings: Application settings; defaults to :func:`get_settings`.
-            llm: An LLM client to use; defaults to one built from ``settings``.
+            llm: A v1-style chat client to use instead of the configured provider.
                 Injecting one is how tests supply a fake client.
+            registry: Agent registry; defaults to the built-in agents.
+
+        Raises:
+            ConfigurationError: if no API key is configured, or ``FREE_ONLY``
+                policy refuses the configured endpoint (checked eagerly, as in v1).
         """
         self._settings = settings or get_settings()
-        self._llm = llm or LLMClient(self._settings)
         self._log = get_logger("workflow")
+        router = ProviderRouter(self._settings)
+        if llm is not None:
+            name = router.global_provider
+            router.add_provider(name, LegacyClientProvider(llm, name=name))
+            router.resolve()  # policy check for the injected client's route
+        else:
+            router.provider(router.global_provider)  # fail fast: missing key / FREE_ONLY
+        self._engine = WorkflowEngine(
+            registry or default_registry(), router, store=InMemoryRunStore()
+        )
 
-        self._research = ResearchAgent(self._llm)
-        self._copywriter = CopywriterAgent(self._llm)
-        self._art_director = ArtDirectorAgent(self._llm)
-        self._manager = ManagerAgent(self._llm)
+    @property
+    def engine(self) -> WorkflowEngine:
+        """The underlying 2.0 engine."""
+        return self._engine
 
     def run(self, brief: CampaignBrief) -> CampaignResult:
         """Generate a complete campaign for a single brief.
 
         Raises:
-            CampaignForgeError: (or a subclass) if any stage fails.
+            CampaignForgeError: (or a subclass) if any stage fails, with the original
+                exception type (e.g. ``LLMError``, ``OutputParsingError``).
         """
         start = time.perf_counter()
         self._log.info("Generating campaign for %r", brief.product_name)
+        result = self._engine.start(classic_campaign(), {"brief": brief})
+        try:
+            if not result.ok:
+                raise self._failure(result)
+            campaign = self._to_campaign_result(brief, result, time.perf_counter() - start)
+        finally:
+            # The v1 API returns results directly; keep no run history in memory.
+            self._engine.store.delete(result.record.run_id, result.record.scope)
+        self._log.info("Finished %r in %.1fs", brief.product_name, campaign.duration_seconds)
+        return campaign
 
-        research_summary = self._research.run(brief)
-        copy = self._copywriter.run(brief, research_summary)
-        image_prompts = self._art_director.run(brief, research_summary, copy)
-        final_brief = self._manager.run(brief, research_summary, copy, image_prompts)
+    @staticmethod
+    def _failure(result: RunResult) -> BaseException:
+        error = result.first_error()
+        if error is not None:
+            return error
+        reason = result.record.status_reason or result.record.status.value
+        return CampaignForgeError(f"Campaign run {result.record.status.value}: {reason}")
 
-        duration = time.perf_counter() - start
-        self._log.info("Finished %r in %.1fs", brief.product_name, duration)
+    def _to_campaign_result(
+        self, brief: CampaignBrief, result: RunResult, duration: float
+    ) -> CampaignResult:
+        final = result.outputs()["final_brief"]
         return CampaignResult(
             brief=brief,
-            research_summary=research_summary,
-            marketing_copy=copy,
-            image_prompts=image_prompts,
-            final_brief=final_brief,
-            model=self._llm.model,
+            research_summary=result.output("research", TextPayload).text,
+            marketing_copy=result.output("copy", CopyContent),
+            image_prompts=result.output("image_prompts", PromptListPayload).prompts,
+            final_brief=final.as_model(TextPayload).text,
+            model=final.produced_by.model or self._settings.model,
             duration_seconds=duration,
         )
 
@@ -103,17 +150,25 @@ class CampaignWorkflow:
 
         Args:
             briefs: The briefs to process.
-            max_workers: Thread-pool size; defaults to ``settings.max_workers``.
+            max_workers: Thread-pool size (1-64); defaults to ``settings.max_workers``.
             on_result: Optional callback invoked as each item completes (useful
-                for progress reporting). Called from worker threads.
+                for progress reporting). It runs on the *calling* thread, one item
+                at a time. If it raises, the error is logged and the batch continues.
 
         Returns:
             Results in the original input order.
+
+        Raises:
+            ConfigurationError: if ``max_workers`` is outside 1-64.
         """
         brief_list = list(briefs)
+        workers = max_workers if max_workers is not None else self._settings.max_workers
+        if not 1 <= workers <= MAX_WORKERS:
+            raise ConfigurationError(
+                f"max_workers must be between 1 and {MAX_WORKERS}; got {workers}."
+            )
         if not brief_list:
             return []
-        workers = max_workers or self._settings.max_workers
         self._log.info("Processing %d campaigns with up to %d workers", len(brief_list), workers)
 
         results: list[BatchItemResult] = []
@@ -126,7 +181,12 @@ class CampaignWorkflow:
                 item = future.result()  # _run_isolated never raises
                 results.append(item)
                 if on_result is not None:
-                    on_result(item)
+                    try:
+                        on_result(item)
+                    except Exception:  # a broken progress callback must not lose results
+                        self._log.exception(
+                            "on_result callback failed for item %d; continuing.", item.index
+                        )
 
         results.sort(key=lambda item: item.index)
         succeeded = sum(1 for item in results if item.ok)

@@ -1,0 +1,298 @@
+"""A deterministic, offline responder that produces valid output for every built-in agent.
+
+It powers the offline eval (a key-free CI gate), the integration tests, and later
+the public demo mode. It routes on the ``agent`` metadata of each request, and
+grounds its output in the product name and channels it reads back from the
+framed brief, so the deterministic checks exercise real data.
+
+Its output is clearly synthetic and must always be labeled as simulated wherever
+it is shown.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from collections.abc import Callable
+
+from ..agents.schemas import ad_channels
+from ..exceptions import ConfigurationError
+from ..providers.base import CompletionRequest
+from .checks import DEFAULT_RUBRIC, RUBRICS
+
+_PRODUCT_RE = re.compile(r"Product name:\s*(.+)")
+_CHANNELS_RE = re.compile(r"Channels:\s*(.+)")
+
+
+def _brief_field(request: CompletionRequest, pattern: re.Pattern[str], default: str) -> str:
+    for message in request.messages:
+        match = pattern.search(message.content)
+        if match:
+            return match.group(1).strip()
+    return default
+
+
+def _product(request: CompletionRequest) -> str:
+    return _brief_field(request, _PRODUCT_RE, "the product")
+
+
+def _channels(request: CompletionRequest) -> list[str]:
+    raw = _brief_field(request, _CHANNELS_RE, "email")
+    return [c.strip() for c in raw.split(",") if c.strip()] or ["email"]
+
+
+def _finding(text: str, basis: str = "model_assumption") -> dict[str, str]:
+    return {"statement": text, "basis": basis}
+
+
+def _audience(request: CompletionRequest) -> str:
+    product = _product(request)
+    return json.dumps(
+        {
+            "summary": f"Busy buyers who want {product} to make a daily routine simpler.",
+            "personas": [
+                {
+                    "name": "Practical planner",
+                    "description": f"Researches before buying and expects {product} to last.",
+                    "motivations": ["save time", "buy once, buy well"],
+                    "pain_points": ["unreliable products", "too much choice"],
+                    "objections": ["price"],
+                    "preferred_channels": _channels(request)[:2],
+                }
+            ],
+            "insights": [
+                _finding(f"The brief positions {product} for this audience.", "user_provided"),
+                _finding("Buyers in this category respond to proof of durability."),
+            ],
+        }
+    )
+
+
+def _market(request: CompletionRequest) -> str:
+    return json.dumps(
+        {
+            "category_summary": f"{_product(request)} competes in a crowded, quality-led category.",
+            "trends": [_finding("Shoppers increasingly favour products that last longer.")],
+            "competitor_angles": [_finding("Competitors tend to lead with price promotions.")],
+            "positioning_angles": ["durability", "everyday convenience", "honest value"],
+        }
+    )
+
+
+def _positioning(request: CompletionRequest) -> str:
+    product = _product(request)
+    return json.dumps(
+        {
+            "positioning_statement": f"For busy people who value reliability, {product} is the "
+            "everyday essential that just works, unlike disposable alternatives.",
+            "value_propositions": ["Lasts for years", "Simple to use every day"],
+            "messaging_pillars": [
+                {"name": "Reliability", "message": "Built to last.", "proof_points_needed": []},
+                {"name": "Ease", "message": "Fits any routine.", "proof_points_needed": []},
+            ],
+            "benefit_ladder": [
+                {
+                    "feature": "Durable build",
+                    "benefit": "Fewer replacements",
+                    "emotional_payoff": "Peace of mind",
+                }
+            ],
+            "differentiators": ["Designed for daily use"],
+        }
+    )
+
+
+def _plan(request: CompletionRequest) -> str:
+    channels = _channels(request)
+    return json.dumps(
+        {
+            "objectives": [f"Grow awareness of {_product(request)}"],
+            "kpis": ["reach", "conversion rate"],
+            "channels": [
+                {
+                    "channel": c,
+                    "role": "Drive awareness and action",
+                    "weight": 5,
+                    "kpis": ["clicks"],
+                }
+                for c in channels
+            ],
+            "phases": [
+                {"name": "Launch", "weeks": 2, "focus": "Awareness", "activities": ["Announce"]},
+                {"name": "Sustain", "weeks": 2, "focus": "Conversion", "activities": ["Retarget"]},
+            ],
+        }
+    )
+
+
+def _copy(request: CompletionRequest) -> str:
+    product = _product(request)
+    return json.dumps(
+        {
+            "tagline": f"{product}: made to last",
+            "primary_message": f"{product} keeps up with your day, every day, for years.",
+            "headlines": [f"Meet {product}", "Built for every day", "Buy once, use for years"],
+            "body_copy": f"{product} is designed for people who want things that simply work.",
+            "call_to_action": f"Get {product} today",
+        }
+    )
+
+
+def _ads(request: CompletionRequest) -> str:
+    product = _product(request)
+    variants = []
+    for channel in ad_channels(_channels(request)) * 2:
+        variants.append(
+            {
+                "platform": channel,
+                "headline": f"Meet {product}"[:30],
+                "primary_text": f"{product} is built for every day. Try it now."[:120],
+                "description": "Made to last."[:90],
+                "call_to_action": "Shop now",
+            }
+        )
+    return json.dumps({"variants": variants})
+
+
+def _social(request: CompletionRequest) -> str:
+    product = _product(request)
+    channels = _channels(request)
+    posts = [
+        {
+            "platform": channels[i % len(channels)],
+            "day": day,
+            "format": ("post", "reel", "story")[i % 3],
+            "caption": f"Day {day}: why {product} belongs in your routine."[:200],
+            "hashtags": ["#launch", product.replace(" ", "")],
+            "visual_idea": f"{product} in everyday use",
+        }
+        for i, day in enumerate((1, 4, 8, 11))
+    ]
+    return json.dumps({"weeks": 2, "posts": posts})
+
+
+def _email(request: CompletionRequest) -> str:
+    product = _product(request)
+    emails = [
+        {
+            "send_day": day,
+            "purpose": purpose,
+            "subject": f"{subject} {product}"[:58],
+            "preview_text": "A quick note from the team.",
+            "body": f"Here is why {product} is worth a look.",
+            "call_to_action": "Learn more",
+        }
+        for day, purpose, subject in (
+            (0, "Introduce", "Meet"),
+            (3, "Educate", "How to use"),
+            (7, "Convert", "Time to try"),
+        )
+    ]
+    return json.dumps({"name": f"{product} launch sequence", "emails": emails})
+
+
+def _visuals(request: CompletionRequest) -> str:
+    product = _product(request)
+    concepts = [
+        {
+            "name": name,
+            "description": f"{product} shown {setting}.",
+            "image_prompt": f"{product} {setting}, natural light, clean composition, warm "
+            "colours, editorial photography style",
+            "mood": mood,
+            "palette": ["warm white", "sage green"],
+            "aspect_ratio": ratio,
+        }
+        for name, setting, mood, ratio in (
+            ("Morning routine", "on a kitchen counter at sunrise", "calm", "4:5"),
+            ("On the move", "in a commuter's bag on a city street", "energetic", "9:16"),
+            ("Detail", "in a close-up studio shot", "premium", "1:1"),
+        )
+    ]
+    return json.dumps({"concepts": concepts})
+
+
+def _critic(request: CompletionRequest) -> str:
+    criteria = {c for rubric in RUBRICS.values() for c in rubric} | set(DEFAULT_RUBRIC)
+    return json.dumps(
+        {
+            "scores": dict.fromkeys(sorted(criteria), 4),
+            "issues": [],
+            "instructions": "Keep the strongest headline first.",
+            "summary": "Solid, on-brief work.",
+        }
+    )
+
+
+def _report_narrative(request: CompletionRequest) -> str:
+    product = _product(request)
+    sections = {
+        "Overview": f"This campaign introduces {product} to a busy, reliability-minded audience.",
+        "Audience & Insights": "The audience researches first and distrusts flimsy products.",
+        "Positioning & Messaging": f"{product} is positioned as the everyday essential that lasts.",
+        "Channel Plan": "Effort is split across the brief's channels with a two-phase timeline.",
+        "Creative Direction": "Warm, natural visuals show the product in real daily routines.",
+        "Next Steps": "Approve the copy, brief the designer, and schedule the first posts.",
+    }
+    filler = (
+        " The team should keep every message consistent with the positioning, measure "
+        "results weekly against the agreed KPIs, and adjust the channel mix after the first "
+        "phase based on what the data shows."
+    )
+    return "\n\n".join(f"## {title}\n\n{body}{filler}" for title, body in sections.items())
+
+
+def _legacy_copy(request: CompletionRequest) -> str:
+    data = json.loads(_copy(request))
+    return json.dumps(data)
+
+
+def _legacy_prompts(request: CompletionRequest) -> str:
+    concepts = json.loads(_visuals(request))["concepts"]
+    return json.dumps({"image_prompts": [c["image_prompt"] for c in concepts]})
+
+
+def _legacy_manager(request: CompletionRequest) -> str:
+    product = _product(request)
+    body = (
+        f"{product} is introduced to its audience with a consistent message about reliability, "
+        "supported by clear visuals and a measured rollout across the brief's channels."
+    )
+    titles = (
+        "Overview",
+        "Target Audience & Insights",
+        "Positioning & Key Messages",
+        "Example Headlines & Copy",
+        "Visual Direction",
+        "Deliverables",
+    )
+    return f"# Campaign Brief - {product}\n\n" + "\n\n".join(f"## {t}\n\n{body}" for t in titles)
+
+
+RESPONDERS: dict[str, Callable[[CompletionRequest], str]] = {
+    "audience_research": _audience,
+    "market_research": _market,
+    "positioning": _positioning,
+    "marketing_strategist": _plan,
+    "copywriter": _copy,
+    "ad_copy": _ads,
+    "social_media": _social,
+    "email_marketing": _email,
+    "art_director": _visuals,
+    "critic": _critic,
+    "campaign_reporter": _report_narrative,
+    "legacy.research": lambda r: f"## Audience\n- Buyers of {_product(r)}\n\n## Angles\n- Value",
+    "legacy.copywriter": _legacy_copy,
+    "legacy.art_director": _legacy_prompts,
+    "legacy.manager": _legacy_manager,
+    "planner": lambda r: json.dumps({"template": "full-campaign", "rationale": "Default plan."}),
+}
+
+
+def offline_responder(request: CompletionRequest) -> str:
+    """Deterministic output for the requesting agent (``request.metadata['agent']``)."""
+    agent = request.metadata.get("agent", "")
+    responder = RESPONDERS.get(agent)
+    if responder is None:
+        raise ConfigurationError(f"The offline responder has no script for agent {agent!r}.")
+    return responder(request)
