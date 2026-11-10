@@ -48,9 +48,9 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/syed-waleed-ahmed/multi_agent_workflow"
-Repository = "https://github.com/syed-waleed-ahmed/multi_agent_workflow"
-Issues = "https://github.com/syed-waleed-ahmed/multi_agent_workflow/issues"
+Homepage = "https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow"
+Repository = "https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow"
+Issues = "https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/issues"
 
 [project.scripts]
 campaign-forge = "campaign_forge.cli:main"

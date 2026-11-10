@@ -23,7 +23,7 @@ from ..exceptions import ToolError
 from ..security.url_safety import Resolver, check_url
 from .html_text import html_to_text
 
-USER_AGENT = "CampaignForge/2.0 (+https://github.com/syed-waleed-ahmed/multi_agent_workflow)"
+USER_AGENT = "CampaignForge/2.0 (+https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow)"
 ROBOTS_AGENT = "CampaignForge"
 ALLOWED_CONTENT_TYPES = frozenset(
     {"text/html", "application/xhtml+xml", "text/plain", "text/markdown", "application/json"}

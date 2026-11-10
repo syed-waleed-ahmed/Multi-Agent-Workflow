@@ -118,8 +118,8 @@ multi_agent_workflow/
 Requires **Python 3.10+**.
 
 ```bash
-git clone https://github.com/syed-waleed-ahmed/multi_agent_workflow.git
-cd multi_agent_workflow
+git clone https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow.git
+cd Multi-Agent-Workflow
 
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate

@@ -140,7 +140,7 @@ non-English input, and add a measurement layer for it.
   which all slugify to the same fallback): the previous `save()` overwrote the
   earlier file. Output files are now guaranteed distinct.
 
-[1.1.0]: https://github.com/syed-waleed-ahmed/multi_agent_workflow/releases/tag/v1.1.0
+[1.1.0]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v1.1.0
 
 ## [1.0.0] - 2026-07-05
 
@@ -180,4 +180,4 @@ installable package (`campaign_forge`).
 - Configuration no longer raises at import time; a missing key is reported only
   when a model call is attempted.
 
-[1.0.0]: https://github.com/syed-waleed-ahmed/multi_agent_workflow/releases/tag/v1.0.0
+[1.0.0]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v1.0.0
