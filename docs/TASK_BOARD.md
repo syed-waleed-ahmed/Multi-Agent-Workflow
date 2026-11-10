@@ -125,6 +125,32 @@ Granular tasks for each session.
 - [x] S5-11 Docs and ADR-031
 - [x] S5-12 Free-tier fixes found by the live runs (ADR-032): serialised Groq requests (D16), the v1 manager and the reporter on the strong model (D17), and no auto-resume on an exhausted quota (D18)
 
-## Sessions 6-10
+## Session 6 - Streamlit application and early demo deployment
+
+- [x] S6-01 `exports/`: Markdown, JSON and HTML downloads for a run. HTML comes from Markdown with raw HTML disabled, so model text cannot inject markup or scripts.
+- [x] S6-02 Hidden reasoning never surfaces: `<think>` blocks are stripped from provider responses before parsing or storage
+- [x] S6-03 `ui/` view models, with no Streamlit import, so they can be unit-tested:
+  - session modes: demo (simulated, in-memory, nothing stored on the server, ADR-008) and local (your configured provider and stores);
+  - plan preview;
+  - background runs with progress;
+  - DAG (Graphviz DOT), step rows, artifacts, evidence, usage, errors;
+  - health without secrets;
+  - the studio map.
+- [x] S6-04 `app/streamlit_app.py`: the 16 navigation entries from ADR-018:
+  - Dashboard, New Run, Run Inspector, History;
+  - 7 studios;
+  - Brand Memory, Agents, Workflow Builder, Evaluation Lab (a placeholder until S8);
+  - Settings and Health.
+- [x] S6-05 New Run: the brief form or a JSON upload, an optional brand and sources, a plan preview with optional-step toggles and budget, and an explicit "Approve and run"
+- [x] S6-06 Run Inspector: DAG, step status, artifacts, evidence, usage, errors, approval gates and downloads; resume and cancel
+- [x] S6-07 Brand Memory and History pages: save and delete brands, save a brand from a run, search campaign history, notes
+- [x] S6-08 Workflow Builder: start from a template, toggle optional steps, set limits, validate, download JSON; upload a definition to validate or run
+- [x] S6-09 Demo mode labeled SIMULATED everywhere. The app starts with no keys.
+- [x] S6-10 Tests: view models and exports (unit), plus Streamlit `AppTest` smoke tests for every page and a full demo run (skipped when Streamlit is not installed; CI installs `[ui]`)
+- [x] S6-11 Packaging: the `[ui]` extra; `app/requirements.txt` for Streamlit Community Cloud; `.streamlit/config.toml`
+- [ ] S6-12 Deploy demo mode to Streamlit Community Cloud. **Blocked on the owner.** **Needs the owner:** deploying requires their Streamlit account connected to GitHub. Until it is deployed and smoke-tested, nothing claims a live URL.
+- [x] S6-13 Docs: README (running the app), ARCHITECTURE status, ADR, CHANGELOG, BUILD_STATUS, SESSION_LOG
+
+## Sessions 7-10
 
 Scope and acceptance criteria are in [ROADMAP.md](ROADMAP.md). Granular tasks are written at the start of each session.

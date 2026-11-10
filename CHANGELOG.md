@@ -8,6 +8,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Streamlit app (Session 6, ADR-033).**
+  - `streamlit run app/streamlit_app.py` opens the 16 navigation entries of ADR-018: Dashboard, New Run, Run Inspector, History, seven studios, Brand Memory, Agents, Workflow Builder, Evaluation Lab (a placeholder until Session 8), and Settings and Health.
+  - Demo mode (the default) is simulated, labeled SIMULATED, and keeps everything in the browser session.
+  - New Run previews the plan and starts only on "Approve and run". The Run Inspector shows the live graph, steps, outputs, claims, evidence, approvals, resume and cancel.
+  - New `[ui]` extra; `app/requirements.txt` for Streamlit Community Cloud.
+- **Exports (`campaign_forge.exports`):** a run as Markdown, JSON or a standalone HTML page. Raw HTML is disabled, so model text cannot inject markup.
+- **Inline reasoning is stripped.** `<think>` (and similar) blocks are removed from provider responses before parsing or storage, so chain of thought is never shown or saved.
 - **Memory and persistence (Session 5, ADR-031).**
   - `campaign_forge.memory`: a scoped `MemoryStore`, and `SqliteMemoryStore` on the stdlib `sqlite3` module. It stores brand profiles, campaign history and notes.
   - FTS5 search with BM25 ranking, plus a LIKE fallback when the SQLite build lacks FTS5.

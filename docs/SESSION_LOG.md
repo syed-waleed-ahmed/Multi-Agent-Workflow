@@ -460,3 +460,70 @@ See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
 ### Next session: starting instructions
 
 See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
+
+---
+
+## Session 6 - Streamlit application (2026-11-10)
+
+**Goal:** a web app over the engine that starts with no keys, previews and approves every plan, shows each run step by step, and downloads the results. Deployment comes later.
+
+**Owner input:** "start the next phases" (the same instruction as Session 5).
+
+### What was done
+
+- **Exports** (`exports/`): a run as Markdown (the report, the v1 final brief, or every output), as JSON (the full record with a `simulated` flag), and as a standalone HTML page (markdown-it-py with raw HTML disabled; `javascript:` links refused).
+- **No chain of thought.** `parsing.strip_reasoning` removes inline `<think>`, `<thinking>` and `<reasoning>` blocks, closed or cut off, from every provider response before parsing or storage.
+- **App logic without Streamlit** (`ui/session.py`, `ui/views.py`):
+  - demo and local sessions;
+  - background runs with error capture;
+  - the workflow graph as Graphviz DOT (inputs, steps coloured by status, conditional edges);
+  - plan, step, run, claim, evidence and agent rows;
+  - plan customisation, input parsers, and health rows that show keys only as set or not set.
+- **Pages** (`ui/pages.py`, plus `app/streamlit_app.py` and 16 three-line files in `app/views/`), covering all of ADR-018:
+  - New Run: form or upload, brand, notes and files, plan graph and table, skip optional steps, budget, "Approve and run".
+  - Run Inspector: live refresh in local mode; graph, steps, outputs with claims, evidence and provenance; approvals, resume, cancel, downloads; save a run's brand.
+  - History: runs, campaign history search, notes. Brand Memory: list, show, download, delete, create from a form, a file or a run.
+  - Agents, Workflow Builder (template or upload, validate, download, hand over to New Run), Evaluation Lab placeholder, Settings and Health.
+  - Seven studios over the shared New Run view. SEO and Analytics say plainly that they arrive in Session 8.
+- **Packaging and CI:**
+  - the `[ui]` extra; `app/requirements.txt` (the app also imports from `src/` without installation);
+  - `.streamlit/config.toml` (2 MB uploads, no error details, no usage stats); `.streamlit/secrets.toml` git-ignored;
+  - CI installs `[dev,ui]`.
+- **Architecture rule:** only `campaign_forge.ui.pages` may import `streamlit`.
+
+### Verified in a real browser
+
+`streamlit run app/streamlit_app.py`, started with no provider keys:
+- The dashboard rendered.
+- New Run showed the plan graph.
+- "Approve and run" completed a simulated `full-campaign` run in 14 calls.
+- The inspector showed the SIMULATED notice and the coloured run graph.
+
+Because every step reads the brief, input edges crowded the graph, so they are now drawn lighter.
+
+### Errors found and fixed during the session
+
+1. **The report export used the report's digest** (title and word count) instead of its Markdown. `artifact_markdown` now prefers a `markdown`/`text` field over `digest()`. Found by a test.
+2. **The graph omitted inputs that only a condition reads.** Fixed, with a test.
+3. **AppTest page tracking.** After a programmatic `st.switch_page`, AppTest keeps rerunning the previous page. Tests re-select the page with a documented `_follow` helper. In a browser the URL follows the switch.
+4. **A wrong test assumption:** a Streamlit form keeps its values after submit. That is kept on purpose, so a validation error does not wipe the user's input.
+5. **The heredoc trap again:** `\1` in a regex became a control character. The edit was redone with the Edit tool.
+
+### Tests run
+
+| Command | Result |
+| --- | --- |
+| `ruff check .`, `ruff format --check .` | Pass |
+| `mypy src` (strict, 83 files, Streamlit included) | Pass |
+| `pytest --cov=campaign_forge` | 653 passed, 97% branch coverage. `ui/pages.py` is at 88%: upload and error branches are not driven by AppTest. |
+| Offline evals: v1, `full-campaign` | 10/10 each |
+| Wheel build | OK; includes `ui`, `exports`, `memory` |
+
+### Not done
+
+- **S6-12, deployment to Streamlit Community Cloud:** needs the owner's Streamlit account connected to GitHub. Nothing claims a live URL. The steps are in [BUILD_STATUS.md](BUILD_STATUS.md).
+- **Recorded fixtures for the demo:** replaced by the offline responder until a live run passes (ADR-033).
+
+### Next session: starting instructions
+
+See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".

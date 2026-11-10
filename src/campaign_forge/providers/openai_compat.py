@@ -64,6 +64,7 @@ from ..exceptions import (
     TruncatedResponseError,
 )
 from ..logging_config import get_logger
+from ..parsing import strip_reasoning
 from ..security.redaction import redact
 from .base import (
     BaseProvider,
@@ -263,7 +264,8 @@ class OpenAICompatibleProvider(BaseProvider):
         if not choices:
             raise EmptyResponseError("Model returned no choices.", provider=self.name)
         choice = choices[0]
-        content = choice.message.content
+        # Inline reasoning is never kept: not shown, not stored, not parsed (no CoT in output).
+        content = strip_reasoning(choice.message.content or "")
         finish_reason = getattr(choice, "finish_reason", None)
         if finish_reason == "content_filter":
             raise ContentFilteredError(

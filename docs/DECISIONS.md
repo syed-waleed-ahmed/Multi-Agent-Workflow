@@ -40,6 +40,9 @@ This file is an append-only log of the significant decisions behind Campaign For
 | 028 | Groq default model: qwen/qwen3.8-27b (llama-3.1-8b-instant retired) | Accepted | 2026-11-10 |
 | 029 | Research tools: search-only, citations bound to retrieved evidence | Accepted | 2026-11-10 |
 | 030 | The free-tier operating envelope: output caps, truncation recovery, generous step timeouts | Accepted | 2026-11-10 |
+| 031 | Memory on stdlib SQLite; Postgres deferred until it can be tested | Accepted | 2026-11-10 |
+| 032 | Free-tier throughput: serialised requests, rate-limit auto-resume, long outputs on the strong model | Accepted | 2026-11-10 |
+| 033 | The Streamlit app: tested view models in the package, thin page files, demo mode in session memory | Accepted | 2026-11-10 |
 
 ---
 
@@ -371,3 +374,20 @@ This file is an append-only log of the significant decisions behind Campaign For
 - **Consequences.**
   - A Groq free-tier day supports a handful of live full campaigns, not dozens.
   - The live acceptance runs (S1-02, S3-05) wait for the daily quota to refill, and are not marked passed until they do.
+
+## ADR-033 The Streamlit app: tested view models in the package, thin page files, demo mode in session memory
+
+- **Context.** Session 6 adds the web app (ADR-006: it calls the core in-process). Streamlit is a large, optional dependency. Its pages must still be type-checked and tested, the public demo must store nothing on the server (ADR-008), and the app must never run anything the user has not approved.
+- **Decision.**
+  - **Layout.** `campaign_forge.ui` (layer 6) holds the app:
+    - `session.py` and `views.py` are plain Python (state, the DAG as Graphviz DOT, table rows, plan customisation, health) and are unit-tested without Streamlit;
+    - `pages.py` renders with Streamlit. An architecture test makes it the only module allowed to import `streamlit`, so the library and CLI work without the `[ui]` extra.
+  - **Pages.** `app/streamlit_app.py` defines the 16 navigation entries of ADR-018. Each page is a three-line file in `app/views/`. File pages let Streamlit's `AppTest` drive every page headlessly, and CI installs `[ui]` to run those tests.
+  - **Modes.** `CF_UI_MODE=demo` is the default and the public mode: the offline responder, labeled SIMULATED, with an in-memory run store and an in-memory SQLite memory store per browser session, seeded with one sample brand. `CF_UI_MODE=local` uses the configured provider and the CLI's stores, and runs in a background thread with a page that refreshes every two seconds.
+  - **Approval.** New Run shows the plan (graph, steps, optional-step toggles, budget) and starts only on "Approve and run". Approval gates, resume and cancel are in the Run Inspector.
+  - **Model text.** No chain of thought is shown: providers strip inline `<think>` blocks before parsing or storage. Model text is rendered as Markdown without raw HTML, in the app and in the HTML export (markdown-it-py with `html` off).
+  - **Deviation.** The roadmap's "recorded fixtures" are replaced by the deterministic offline responder for now. No live run has passed yet, so there is nothing faithful to record.
+- **Consequences.**
+  - The app starts with no keys and runs entirely offline in demo mode.
+  - Streamlit Community Cloud deployment needs the owner's account. It is not claimed until it is deployed and smoke-tested (S6-12).
+  - Live mode for the public deployment (owner key, per-session caps) is Session 9.

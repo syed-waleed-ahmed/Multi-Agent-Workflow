@@ -41,3 +41,6 @@ graphify-out/cache/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Streamlit secrets (owner keys for a deployed live mode) must never be committed
+.streamlit/secrets.toml

@@ -42,7 +42,7 @@ Dependency policy (ADR-007):
 | Persistence | SQLite (stdlib `sqlite3` or SQLAlchemy Core; decided in S5) | core / `[db]` | S5 | Decision pending |
 | Optional cloud database | Supabase Postgres through a Postgres driver | `[db]` | S5 | Optional |
 | Full-text search | SQLite FTS5 / Postgres full-text | - | S5 | Planned |
-| User interface | Streamlit | `[ui]` | S6 | Planned |
+| User interface | Streamlit (`>=1.40,<2`; tested with 1.65) | `[ui]` | S6 | **Implemented** |
 | Workflow visualisation | `st.graphviz_chart` (rendered in the browser, so no system Graphviz needed) | `[ui]` | S6 | Planned |
 | API | FastAPI + Uvicorn | `[api]` | S7 | Planned |
 | Container | Docker (development and self-hosting only) | - | S7 | Planned |

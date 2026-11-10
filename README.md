@@ -179,6 +179,7 @@ The 2.0 provider layer adds the settings below. Every command, including the v1 
 | `CF_MEMORY_DB` | `outputs/campaign_forge.db` | SQLite file for brand profiles, campaign history and notes |
 | `CF_RUN_STORE` | `json` | `json` (files in `CF_RUNS_DIR`) or `sqlite` (runs in `CF_MEMORY_DB`) |
 | `CF_MEMORY_HISTORY` | `true` | Remember completed runs as searchable campaign history |
+| `CF_UI_MODE` | `demo` | Web app: `demo` (simulated, nothing stored on the server) or `local` (your provider and stores) |
 
 ---
 
@@ -215,6 +216,21 @@ campaign-forge batch examples/batch_campaigns.json --workers 8
 Each brief runs in isolation. Failures are reported per item and the process exits non-zero if any brief fails, which makes it safe to use in automation and CI.
 
 You can also run without installing via `python -m campaign_forge ...` or the legacy `python main.py ...`.
+
+### Web app (Streamlit)
+
+```bash
+pip install -e ".[ui]"
+streamlit run app/streamlit_app.py
+```
+
+The app starts in **demo mode** with no API key. Every agent is answered by a deterministic simulated responder, every output is labeled **SIMULATED**, and nothing you enter is stored on the server. It provides:
+
+- **New Run:** a brief form or a JSON upload, an optional brand and notes, a plan preview (workflow graph, steps, optional steps you can skip, budget), and an explicit **Approve and run**.
+- **Run Inspector:** a live workflow graph, step status, outputs with their claims, evidence and provenance, approval gates, resume and cancel, and Markdown, JSON and HTML downloads.
+- **History, Brand Memory, Agents, Workflow Builder, Settings and Health.** Seven studios open New Run with the matching templates. The SEO and Analytics studios say plainly that their agents arrive in Session 8.
+
+Set `CF_UI_MODE=local` to use your configured provider and the same run store and memory as the CLI; local runs execute in the background while the page refreshes.
 
 ### Workflow engine (2.0 preview)
 

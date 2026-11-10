@@ -70,6 +70,15 @@ All values are configurable; the defaults are tuned in Session 9.
 
 Caps held in process memory reset when the app restarts. That is acceptable for a demo, and the limitation is documented.
 
+### Implemented in Session 6
+
+- **Demo mode stores nothing on the server.** Runs, brands and notes live in the browser session's memory only (ADR-008).
+- **Model text cannot inject markup.** Streamlit renders Markdown without raw HTML, and the HTML export disables raw HTML and refuses `javascript:` links.
+- **No chain of thought.** Inline reasoning blocks are stripped from provider responses before parsing or storage.
+- **Uploads.** Uploads are capped at 2 MB (`.streamlit/config.toml`) and limited to JSON or text types. Text sources are truncated to the source size cap. The app never fetches URLs.
+- **No error detail in the browser.** `client.showErrorDetails = false`, so tracebacks are not shown.
+- **Secrets.** `.streamlit/secrets.toml` is git-ignored. Keys appear only as "set" or "not set" on the health page.
+
 ## 6. Human approval policy
 
 - **Approval gates exist in the engine** from Session 2 (`WAITING_FOR_APPROVAL`). They are used for plan review and optional strategy sign-off.

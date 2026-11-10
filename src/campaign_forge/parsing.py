@@ -17,6 +17,23 @@ _ENUM_PREFIX_RE = re.compile(rf"^\s*(?:[-*{_BULLET}]|\d+[.)])\s*")
 _MARKDOWN_EMPHASIS = "*_`#"
 
 
+_REASONING_TAGS = "think|thinking|reasoning"
+_REASONING_BLOCK_RE = re.compile(rf"<({_REASONING_TAGS})>.*?</\1>\s*", re.IGNORECASE | re.DOTALL)
+_UNCLOSED_REASONING_RE = re.compile(rf"<({_REASONING_TAGS})>.*\Z", re.IGNORECASE | re.DOTALL)
+
+
+def strip_reasoning(text: str) -> str:
+    """Remove a model's inline reasoning (``<think>...</think>`` and similar blocks).
+
+    Some open models emit their chain of thought inline before the answer. It is
+    never shown, stored or parsed: only the answer is kept. An unclosed block
+    (the model was cut off while still reasoning) is removed to the end, which
+    leaves an empty answer for the caller to reject.
+    """
+    without_blocks = _REASONING_BLOCK_RE.sub("", text)
+    return _UNCLOSED_REASONING_RE.sub("", without_blocks).strip()
+
+
 def strip_code_fences(text: str) -> str:
     """Remove a surrounding Markdown code fence (```json ... ```), if present."""
     stripped = text.strip()

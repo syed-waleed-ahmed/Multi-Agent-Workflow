@@ -35,7 +35,9 @@ LAYERS: dict[str, int] = {
     "campaign_forge.evaluation": 4,
     "campaign_forge.orchestration": 5,
     "campaign_forge.workflow": 5,
+    "campaign_forge.exports": 5,
     "campaign_forge.cli": 6,
+    "campaign_forge.ui": 6,
     "campaign_forge.__main__": 6,
     "campaign_forge": 6,
 }
@@ -138,3 +140,24 @@ def test_no_code_execution_or_process_spawning(path: Path) -> None:
             names = [node.module.split(".")[0]]
         problems.extend(f"import of {n}" for n in names if n in FORBIDDEN_MODULES)
     assert problems == []
+
+
+#: Optional-extra libraries and the only modules allowed to import them, so the core
+#: package (library and CLI) works without the extra installed.
+EXTRA_IMPORTS: dict[str, set[str]] = {"streamlit": {"campaign_forge.ui.pages"}}
+
+
+def test_optional_extras_stay_out_of_the_core() -> None:
+    importers: dict[str, set[str]] = {extra: set() for extra in EXTRA_IMPORTS}
+    for path in _sources():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            names: list[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name.split(".")[0] for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module.split(".")[0]]
+            for name in names:
+                if name in importers:
+                    importers[name].add(_module_name(path))
+    assert importers == EXTRA_IMPORTS

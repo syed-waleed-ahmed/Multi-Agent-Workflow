@@ -176,6 +176,10 @@ class WorkflowEngine:
         return self._store
 
     @property
+    def router(self) -> ProviderRouter:
+        return self._router
+
+    @property
     def events(self) -> EventBus:
         """Engine-wide event stream (every run publishes here)."""
         return self._events

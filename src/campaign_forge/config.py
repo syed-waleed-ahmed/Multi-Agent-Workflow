@@ -144,6 +144,11 @@ class Settings(BaseSettings):
     #: Remember completed CLI runs as searchable campaign history.
     memory_history: bool = True
 
+    # --- Streamlit app (Session 6) ------------------------------------------
+    #: ``demo``: simulated output, nothing stored on the server (the public default,
+    #: ADR-008). ``local``: your configured provider, run store and memory.
+    ui_mode: Literal["demo", "local"] = "demo"
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalise_log_level(cls, value: object) -> object:

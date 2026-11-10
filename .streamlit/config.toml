@@ -1,0 +1,10 @@
+# Streamlit settings for local runs and Streamlit Community Cloud.
+[server]
+# Uploads are briefs, brand profiles, workflow definitions and text sources: keep them small.
+maxUploadSize = 2
+
+[browser]
+gatherUsageStats = false
+
+[client]
+showErrorDetails = false
