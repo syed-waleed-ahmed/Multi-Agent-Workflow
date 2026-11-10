@@ -26,7 +26,7 @@ Granular tasks for each session.
 ### Baseline
 
 - [~] S1-01 Provider facts were verified on 2026-11-10 (Session 0, same day). Resolving model aliases from live `/models` needs keys and owner approval: run `python scripts/provider_smoke.py --live --models`
-- [ ] S1-02 Run a live eval baseline on Groq; record the date, model, pass rate, duration and any 429s. **Blocked: waiting for owner approval to spend Groq quota.**
+- [~] S1-02 Run a live eval baseline on Groq; record the date, model, pass rate, duration and any 429s. **Attempted three times on 2026-11-10; not passed.** Each failure was diagnosed and fixed (D11-D18). The third run hit the daily quota. Rerun when it refills (BUILD_STATUS.md, "Live runs").
 
 ### Defect fixes, each with a regression test
 
@@ -93,7 +93,7 @@ Granular tasks for each session.
 - [x] S3-02 Eleven agents per [AGENT_CATALOG.md](AGENT_CATALOG.md), each with spec, prompt version, output contract, validation, tests and rubric
 - [x] S3-03 Templates: `full-campaign`, `ad-pack`, `social-calendar`, `email-sequence`
 - [x] S3-04 Eval harness `--workflow` mode (per-output deterministic checks, call and token metrics), with a CI step for `full-campaign`
-- [ ] S3-05 Live `full-campaign` run on the Groq free tier; record the measured usage; tag `2.0.0b1`. **Blocked: needs approval to spend quota and to commit.**
+- [~] S3-05 Live `full-campaign` run on the Groq free tier; record the measured usage; tag `2.0.0b1`. **Attempted three times on 2026-11-10; not passed** (paused on rate limits, then on the daily quota). The tag waits for a passing run.
 
 ## Session 4 - Tools and evidence-backed research
 
@@ -108,8 +108,23 @@ Granular tasks for each session.
 - [x] S4-09 Optional workflow inputs (`sources`); `competitor-report` template; research templates accept user sources
 - [x] S4-10 CLI `--sources`; the reporter renders a code-built Sources section
 - [x] S4-11 Tests: SSRF, robots, caps, fabricated citations, evidence and assumptions modes, new agents; offline responder; evals
-- [ ] S4-12 Docs: ARCHITECTURE status, SECURITY (T2-T4), AGENT_CATALOG, FREE_TIER_POLICY, ADRs, CHANGELOG, BUILD_STATUS, SESSION_LOG
+- [x] S4-12 Docs: ARCHITECTURE status, SECURITY (T2-T4), AGENT_CATALOG, FREE_TIER_POLICY, ADRs, CHANGELOG, BUILD_STATUS, SESSION_LOG
 
-## Sessions 5-10
+## Session 5 - Memory and persistence
+
+- [x] S5-01 `domain/brand.py`: `BrandProfile` (`brand.profile@1`): voice, tone, do/don't, preferred and banned terms, visual style
+- [x] S5-02 `memory/`: scoped store protocol and a SQLite implementation (stdlib `sqlite3`): brands, documents (campaign history and notes), FTS5 search with a LIKE fallback, and `delete_scope`
+- [x] S5-03 Secrets never reach storage: everything written is redacted (key-shaped strings and configured secret values)
+- [x] S5-04 SQLite `RunStore` (`CF_RUN_STORE=sqlite`), passing the same contract tests as the JSON-file store
+- [x] S5-05 Agents `brand_strategist` (`brand.profile@1`) and `brand_consistency` (code-checked terms, plus a model tone score); `copywriter` accepts an optional brand profile
+- [x] S5-06 Templates: `brand-kit`; `full-campaign` gains an optional `brand` input and a conditional brand check (a required agent input may bind an optional workflow input only behind an `exists` condition)
+- [x] S5-07 CLI: `memory brand save|list|show|delete`, `memory search`, `memory forget --yes`, `execute --brand`; completed runs are recorded as campaign history
+- [x] S5-08 Retrieved memory is framed as data: brand profiles reach prompts only inside `brand profile` framing (writer, critic, brand check)
+- [~] S5-09 Postgres (Supabase) backend: **deferred**. Blocker: no test database is available, and a Supabase project needs the owner's account. It will not ship untested (ADR-031).
+- [x] S5-10 Tests: tenant isolation, deletion, secret redaction, FTS ranking and fallback, run-store parity, agents, templates, CLI
+- [x] S5-11 Docs and ADR-031
+- [x] S5-12 Free-tier fixes found by the live runs (ADR-032): serialised Groq requests (D16), the v1 manager and the reporter on the strong model (D17), and no auto-resume on an exhausted quota (D18)
+
+## Sessions 6-10
 
 Scope and acceptance criteria are in [ROADMAP.md](ROADMAP.md). Granular tasks are written at the start of each session.

@@ -9,7 +9,12 @@ tenant can never read another tenant's runs.
   Writes are atomic (write to a temporary file, then ``os.replace``), and path
   components are encoded so ids cannot escape the root directory.
 
-SQLite and Postgres stores arrive in Session 5.
+* :class:`SqliteRunStore`: one SQLite file (stdlib ``sqlite3``) that can be shared
+  with the memory store (``CF_RUN_STORE=sqlite``). It passes the same contract
+  tests as the other stores.
+
+A Postgres store is deferred until it can be tested against a real database
+(ADR-031).
 """
 
 from __future__ import annotations
@@ -20,10 +25,12 @@ import re
 import tempfile
 import threading
 from pathlib import Path
+from types import TracebackType
 from typing import Protocol
 
 from ..domain.scope import Scope
 from ..exceptions import RunNotFoundError
+from ..memory.sqlite import connect
 from .state import RUN_ID_PATTERN, RunRecord
 
 _RUN_ID_RE = re.compile(RUN_ID_PATTERN)
@@ -135,3 +142,79 @@ class JsonFileRunStore:
             path.unlink()
         except FileNotFoundError:
             raise RunNotFoundError(f"Run {run_id!r} not found.") from None
+
+
+class SqliteRunStore:
+    """One row per run in a ``runs`` table, keyed by scope and run id."""
+
+    def __init__(self, path: Path | str) -> None:
+        self._conn = connect(path)
+        self._lock = threading.Lock()
+        with self._lock, self._conn:
+            self._conn.execute(
+                "CREATE TABLE IF NOT EXISTS runs ("
+                "org_id TEXT NOT NULL, user_id TEXT NOT NULL, run_id TEXT NOT NULL, "
+                "created_at TEXT NOT NULL, record_json TEXT NOT NULL, "
+                "PRIMARY KEY (org_id, user_id, run_id))"
+            )
+
+    def save(self, record: RunRecord) -> None:
+        _check_run_id(record.run_id)
+        with self._lock, self._conn:
+            self._conn.execute(
+                "INSERT INTO runs (org_id, user_id, run_id, created_at, record_json) "
+                "VALUES (?, ?, ?, ?, ?) ON CONFLICT (org_id, user_id, run_id) "
+                "DO UPDATE SET record_json = excluded.record_json",
+                (
+                    record.scope.org_id,
+                    record.scope.user_id,
+                    record.run_id,
+                    record.created_at.isoformat(),
+                    record.model_dump_json(),
+                ),
+            )
+
+    def load(self, run_id: str, scope: Scope) -> RunRecord:
+        _check_run_id(run_id)
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT record_json FROM runs WHERE org_id = ? AND user_id = ? AND run_id = ?",
+                (scope.org_id, scope.user_id, run_id),
+            ).fetchone()
+        if row is None:
+            raise RunNotFoundError(f"Run {run_id!r} not found.")
+        return RunRecord.model_validate_json(row["record_json"])
+
+    def list_runs(self, scope: Scope) -> list[RunRecord]:
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT record_json FROM runs WHERE org_id = ? AND user_id = ?",
+                (scope.org_id, scope.user_id),
+            ).fetchall()
+        records = [RunRecord.model_validate_json(row["record_json"]) for row in rows]
+        return sorted(records, key=lambda r: r.created_at, reverse=True)
+
+    def delete(self, run_id: str, scope: Scope) -> None:
+        _check_run_id(run_id)
+        with self._lock, self._conn:
+            deleted = self._conn.execute(
+                "DELETE FROM runs WHERE org_id = ? AND user_id = ? AND run_id = ?",
+                (scope.org_id, scope.user_id, run_id),
+            ).rowcount
+        if not deleted:
+            raise RunNotFoundError(f"Run {run_id!r} not found.")
+
+    def close(self) -> None:
+        with self._lock:
+            self._conn.close()
+
+    def __enter__(self) -> SqliteRunStore:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()

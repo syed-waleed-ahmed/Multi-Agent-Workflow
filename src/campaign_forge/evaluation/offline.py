@@ -309,6 +309,28 @@ def _fact_check(request: CompletionRequest) -> str:
     )
 
 
+def _brand(request: CompletionRequest) -> str:
+    product = _product(request)
+    return json.dumps(
+        {
+            "name": product,
+            "voice": f"{product} speaks plainly and warmly, like a friend who knows the product.",
+            "tone_words": ["warm", "plain", "confident"],
+            "audience": "People who want things that simply work.",
+            "values": ["durability", "honesty"],
+            "guidelines": ["Lead with a concrete benefit", "Use short sentences"],
+            "avoid": ["Hype", "Claims the brief cannot support"],
+            "preferred_terms": ["every day", "for years"],
+            "banned_terms": ["revolutionary", "game-changing", "cheap"],
+            "visual_style": "Natural light, real people, uncluttered backgrounds.",
+        }
+    )
+
+
+def _brand_tone(request: CompletionRequest) -> str:
+    return json.dumps({"score": 4, "notes": ["Plain and warm, as the profile describes."]})
+
+
 def _plan_or(builder: Callable[[CompletionRequest], str]) -> Callable[[CompletionRequest], str]:
     """Answer a research plan request with a query; otherwise use ``builder``."""
 
@@ -391,6 +413,8 @@ RESPONDERS: dict[str, Callable[[CompletionRequest], str]] = {
     "art_director": _visuals,
     "critic": _critic,
     "campaign_reporter": _report_narrative,
+    "brand_strategist": _brand,
+    "brand_consistency": _brand_tone,
     "legacy.research": lambda r: f"## Audience\n- Buyers of {_product(r)}\n\n## Angles\n- Value",
     "legacy.copywriter": _legacy_copy,
     "legacy.art_director": _legacy_prompts,

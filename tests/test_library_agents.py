@@ -64,8 +64,10 @@ def _inputs_for(agent_cls: type) -> dict[str, Artifact]:
     inputs = {
         "brief": Artifact.from_model(BRIEF_KIND, BRIEF, produced_by=ProducedBy(agent_id="user"))
     }
+    # Agents whose offline responder returns their artifact payload directly.
+    custom = ("critic", "fact_checker", "brand_consistency")
     by_kind = {
-        cls.spec.output_kind: cls.spec.id for cls in LIBRARY_AGENTS if cls.spec.id != "critic"
+        cls.spec.output_kind: cls.spec.id for cls in LIBRARY_AGENTS if cls.spec.id not in custom
     }
     request = CompletionRequest.from_prompts("s", BRIEF.as_prompt_context())
     for item in agent_cls.spec.inputs:
@@ -87,7 +89,11 @@ def _inputs_for(agent_cls: type) -> dict[str, Artifact]:
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(
     "agent_cls",
-    [a for a in LIBRARY_AGENTS if a.spec.id not in ("critic", "campaign_reporter", "fact_checker")],
+    [
+        a
+        for a in LIBRARY_AGENTS
+        if a.spec.id not in ("critic", "campaign_reporter", "fact_checker", "brand_consistency")
+    ],
     ids=lambda a: a.spec.id,
 )
 def test_structured_agents_produce_valid_artifacts(agent_cls: type) -> None:
@@ -423,7 +429,7 @@ def test_every_library_agent_is_registered_once() -> None:
 
     registry = AgentRegistry()
     register_library_agents(registry)
-    assert len(registry) == 13
+    assert len(registry) == 15
     ids: Mapping[str, Any] = {s.id: s for s in registry.specs()}
     assert {"copywriter", "critic", "campaign_reporter"} <= set(ids)
     assert all(s.rubric for s in ids.values())

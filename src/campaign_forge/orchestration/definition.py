@@ -165,8 +165,8 @@ class WorkflowDefinition(BaseModel):
     version: str = Field(default="1.0.0", pattern=r"^\d+\.\d+\.\d+$")
     description: str = Field(default="", max_length=1000)
     inputs: dict[Identifier, ArtifactKind]
-    #: Inputs a run may omit (e.g. user-supplied sources). Steps that bind them to a
-    #: *required* agent input are rejected by validation.
+    #: Inputs a run may omit (e.g. user-supplied sources). A step may bind one to a
+    #: *required* agent input only behind an ``exists`` condition on that input.
     optional_inputs: dict[Identifier, ArtifactKind] = Field(default_factory=dict)
     steps: tuple[StepDefinition, ...] = Field(min_length=1, max_length=50)
     outputs: dict[Identifier, Reference] = Field(default_factory=dict)
@@ -286,6 +286,13 @@ def _find_cycle(graph: Mapping[str, set[str]]) -> list[str] | None:
     return None
 
 
+def _guarded(step: StepDefinition, input_name: str) -> bool:
+    """Whether the step runs only when the optional workflow input is present."""
+    return any(
+        c.source == f"input:{input_name}" and c.op == "exists" and not c.path for c in step.when
+    )
+
+
 def validate_definition(definition: WorkflowDefinition, registry: AgentRegistry) -> None:
     """Check a definition against the registry.
 
@@ -326,10 +333,15 @@ def validate_definition(definition: WorkflowDefinition, registry: AgentRegistry)
                 continue
             kind, source = parse_ref(ref)
             actual = definition.input_kind(source) if kind == "input" else output_kinds.get(source)
-            if kind == "input" and source in definition.optional_inputs and declared[name].required:
+            if (
+                kind == "input"
+                and source in definition.optional_inputs
+                and declared[name].required
+                and not _guarded(step, source)
+            ):
                 problems.append(
                     f"step {step.id!r}: required input {name!r} is bound to optional workflow "
-                    f"input {source!r}"
+                    f"input {source!r} without an 'exists' condition on it"
                 )
             if actual is not None and actual != declared[name].kind:
                 problems.append(

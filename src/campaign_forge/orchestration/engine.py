@@ -469,6 +469,11 @@ class WorkflowEngine:
                 continue
             if any(not record.steps[dep].terminal for dep in step.dependencies()):
                 continue
+            # Conditions first: a step whose condition is false (e.g. no brand was given)
+            # is skipped for that reason, not reported as missing an input.
+            if not all(c.evaluate(self._condition_artifact(record, c.source)) for c in step.when):
+                self._skip(state, SkipReason.CONDITION, "condition not met")
+                continue
             spec = self._registry.spec(step.agent)
             required = {item.name for item in spec.required_inputs}
             missing = [
@@ -478,9 +483,6 @@ class WorkflowEngine:
             ]
             if missing:
                 self._skip(state, SkipReason.DEPENDENCY, "missing input: " + ", ".join(missing))
-                continue
-            if not all(c.evaluate(self._condition_artifact(record, c.source)) for c in step.when):
-                self._skip(state, SkipReason.CONDITION, "condition not met")
                 continue
             ready.append(step_id)
         return ready

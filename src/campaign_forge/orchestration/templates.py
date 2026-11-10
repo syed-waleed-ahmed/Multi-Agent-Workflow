@@ -6,6 +6,12 @@ Templates:
   v1 ``CampaignWorkflow`` API).
 * ``full-campaign``: the wave-1 agent library end to end, with critic review.
 * ``ad-pack``, ``social-calendar``, ``email-sequence``: focused deliverables.
+* ``competitor-report``: evidence-backed competitor research, fact-checked.
+* ``brand-kit``: a brand profile, on-brand core copy, and a brand check.
+
+Every content template accepts an optional ``brand`` input (``brand.profile@1``,
+e.g. ``execute --brand <name>``): the copywriter writes in its voice, banned terms
+become contract violations, and ``full-campaign`` adds a brand check.
 
 See docs/AGENT_CATALOG.md, section 5.
 """
@@ -20,6 +26,7 @@ from ..agents.library import register_library_agents
 from ..agents.schemas import BRIEF_KIND
 from ..core.budget import BudgetLimits
 from ..core.registry import AgentRegistry
+from ..domain.brand import BRAND_KIND
 from ..domain.sources import SOURCES_KIND
 from ..exceptions import ConfigurationError
 from .definition import Condition, ReviewSpec, StepDefinition, WorkflowDefinition
@@ -88,7 +95,9 @@ def classic_campaign() -> WorkflowDefinition:
 # --------------------------------------------------------------------------- #
 _BRIEF = "input:brief"
 _SOURCES = "input:sources"
+_BRAND = "input:brand"
 _OPTIONAL_SOURCES = {"sources": SOURCES_KIND}
+_OPTIONAL_INPUTS = {"sources": SOURCES_KIND, "brand": BRAND_KIND}
 _REVIEW = ReviewSpec(critic="critic", threshold=0.7, max_revisions=1)
 
 
@@ -112,6 +121,7 @@ def _foundation() -> tuple[StepDefinition, ...]:
                 "brief": _BRIEF,
                 "positioning": "step:positioning",
                 "audience": "step:audience",
+                "brand": _BRAND,
             },
             review=_REVIEW,
         ),
@@ -128,10 +138,11 @@ def full_campaign() -> WorkflowDefinition:
         description=(
             "Audience and market research, positioning, a channel plan, reviewed core copy and "
             "ads, a social calendar, an email sequence (when email is a channel), visual "
-            "concepts, and a final report with every deliverable."
+            "concepts, a brand check (when a brand is given), and a final report with every "
+            "deliverable."
         ),
         inputs={"brief": BRIEF_KIND},
-        optional_inputs=_OPTIONAL_SOURCES,
+        optional_inputs=_OPTIONAL_INPUTS,
         steps=(
             StepDefinition(
                 id="audience",
@@ -162,6 +173,7 @@ def full_campaign() -> WorkflowDefinition:
                     "brief": _BRIEF,
                     "positioning": "step:positioning",
                     "audience": "step:audience",
+                    "brand": _BRAND,
                 },
                 review=_REVIEW,
             ),
@@ -178,6 +190,19 @@ def full_campaign() -> WorkflowDefinition:
             ),
             StepDefinition(id="visuals", agent="art_director", inputs=content, optional=True),
             StepDefinition(
+                id="brand_check",
+                agent="brand_consistency",
+                inputs={
+                    "brand": _BRAND,
+                    "copy": "step:copy",
+                    "ads": "step:ads",
+                    "social": "step:social",
+                    "email": "step:email",
+                },
+                when=(Condition(source=_BRAND, op="exists"),),
+                optional=True,
+            ),
+            StepDefinition(
                 id="report",
                 agent="campaign_reporter",
                 inputs={
@@ -191,6 +216,8 @@ def full_campaign() -> WorkflowDefinition:
                     "social": "step:social",
                     "email": "step:email",
                     "visuals": "step:visuals",
+                    "brand": _BRAND,
+                    "brand_check": "step:brand_check",
                 },
             ),
         ),
@@ -202,6 +229,7 @@ def full_campaign() -> WorkflowDefinition:
             "social": "step:social",
             "email": "step:email",
             "visuals": "step:visuals",
+            "brand_check": "step:brand_check",
         },
         # About 10 agent calls, plus up to 4 critic calls and 2 revisions. Two parallel steps
         # keep bursts within a free-tier tokens-per-minute quota.
@@ -219,7 +247,7 @@ def _focused(
         version="1.0.0",
         description=description,
         inputs={"brief": BRIEF_KIND},
-        optional_inputs=_OPTIONAL_SOURCES,
+        optional_inputs=_OPTIONAL_INPUTS,
         steps=(*_foundation(), step),
         outputs={output: f"step:{step.id}", "copy": "step:copy"},
         limits=BudgetLimits(max_llm_calls=20, max_total_tokens=60_000, max_wall_seconds=1800),
@@ -304,6 +332,58 @@ def competitor_report() -> WorkflowDefinition:
     )
 
 
+def brand_kit() -> WorkflowDefinition:
+    """A brand profile from the brief, on-brand core copy, and a brand check of that copy."""
+    return WorkflowDefinition(
+        id="brand-kit",
+        name="Brand kit",
+        version="1.0.0",
+        description=(
+            "Audience research, a brand profile (voice, tone, preferred and banned terms, visual "
+            "style), positioning, reviewed on-brand core copy, and a brand check of that copy. "
+            "Keep the profile with 'memory brand save --run <run id>'."
+        ),
+        inputs={"brief": BRIEF_KIND},
+        optional_inputs=_OPTIONAL_SOURCES,
+        steps=(
+            StepDefinition(
+                id="audience",
+                agent="audience_research",
+                inputs={"brief": _BRIEF, "sources": _SOURCES},
+            ),
+            StepDefinition(
+                id="brand",
+                agent="brand_strategist",
+                inputs={"brief": _BRIEF, "audience": "step:audience"},
+            ),
+            StepDefinition(
+                id="positioning",
+                agent="positioning",
+                inputs={"brief": _BRIEF, "audience": "step:audience"},
+            ),
+            StepDefinition(
+                id="copy",
+                agent="copywriter",
+                inputs={
+                    "brief": _BRIEF,
+                    "positioning": "step:positioning",
+                    "audience": "step:audience",
+                    "brand": "step:brand",
+                },
+                review=_REVIEW,
+            ),
+            StepDefinition(
+                id="brand_check",
+                agent="brand_consistency",
+                inputs={"brand": "step:brand", "copy": "step:copy"},
+            ),
+        ),
+        outputs={"brand": "step:brand", "copy": "step:copy", "brand_check": "step:brand_check"},
+        limits=BudgetLimits(max_llm_calls=20, max_total_tokens=60_000, max_wall_seconds=1800),
+        max_parallel=1,
+    )
+
+
 @dataclass(frozen=True)
 class TemplateInfo:
     """A catalog entry: what the planner and the UI know about a template."""
@@ -331,6 +411,7 @@ BUILTIN_TEMPLATES: Mapping[str, TemplateInfo] = {
         _info(social_calendar),
         _info(email_sequence),
         _info(competitor_report),
+        _info(brand_kit),
     )
 }
 DEFAULT_TEMPLATE = "full-campaign"

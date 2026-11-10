@@ -175,6 +175,10 @@ The 2.0 provider layer adds the settings below. Every command, including the v1 
 | `CF_RUNS_DIR` | `outputs/runs` | Where `execute` checkpoints runs (JSON, one file per run) |
 | `CF_RESEARCH_TOOLS` | `wikipedia` | Search tools research agents may use: `wikipedia`, `tavily`, or empty |
 | `TAVILY_API_KEY` | (unset) | Enables Tavily web search (free tier available) |
+| `CF_PROVIDER_CONCURRENCY` | `{}` | JSON map of provider to requests in flight (Groq's profile default is 1) |
+| `CF_MEMORY_DB` | `outputs/campaign_forge.db` | SQLite file for brand profiles, campaign history and notes |
+| `CF_RUN_STORE` | `json` | `json` (files in `CF_RUNS_DIR`) or `sqlite` (runs in `CF_MEMORY_DB`) |
+| `CF_MEMORY_HISTORY` | `true` | Remember completed runs as searchable campaign history |
 
 ---
 
@@ -231,6 +235,7 @@ campaign-forge runs show <run-id>                            # steps, usage, err
 campaign-forge runs resume <run-id>                          # continue a paused or failed run
 campaign-forge runs approve <run-id> <step> [--reject]       # approval gates
 campaign-forge runs cancel <run-id>
+campaign-forge execute full-campaign --brief brief.json --auto-resume 3   # wait out rate limits
 ```
 
 `execute`, `runs resume` and `runs approve` exit with:
@@ -250,11 +255,28 @@ Built-in workflows:
 | `social-calendar` | A two-week social calendar |
 | `email-sequence` | An email sequence |
 | `competitor-report` | Named-competitor profiles and market research, every cited claim fact-checked |
+| `brand-kit` | A brand profile, on-brand reviewed copy, and a brand check |
 | `classic-campaign` | The v1 pipeline |
 
 The agents are described in [`docs/AGENT_CATALOG.md`](docs/AGENT_CATALOG.md).
 
 Research agents cite evidence. They search Wikipedia by default (Tavily if configured), and you can add your own material with `--sources notes.md data.csv https://...`. Every citation is checked against the evidence actually retrieved. Without evidence, findings are labeled as model assumptions.
+
+### Brand memory and campaign history
+
+Brand profiles, notes and campaign history are stored locally in one SQLite file, `CF_MEMORY_DB`. Every string is redacted before it is stored.
+
+```bash
+campaign-forge execute brand-kit --brief brief.json          # create a brand profile
+campaign-forge memory brand save --run <run-id>              # keep it (or: save brand.json)
+campaign-forge execute full-campaign --brief brief.json --brand "EcoSip"
+campaign-forge memory brand list                             # show, delete
+campaign-forge memory search "summer launch"                 # past campaigns and notes
+campaign-forge memory note "Hiking clubs respond to trail photos"
+campaign-forge memory forget --yes --runs                    # delete everything stored
+```
+
+With a brand, the copywriter writes in the brand's voice and may not use its banned terms. `full-campaign` adds a brand check: code counts the terms, and a model scores the tone.
 
 To try it with no API key, set `CF_PROVIDER=fake`. Every agent is then answered by a deterministic offline responder, and the output is labeled **SIMULATED**.
 

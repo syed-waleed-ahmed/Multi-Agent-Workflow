@@ -16,7 +16,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import (
     AliasChoices,
@@ -135,6 +135,14 @@ class Settings(BaseSettings):
     output_dir: Path = Path("outputs")
     runs_dir: Path = Path("outputs/runs")
     log_level: str = "INFO"
+
+    # --- Memory and persistence (ADR-031) -----------------------------------
+    #: SQLite file holding brand profiles, campaign history and notes (and runs
+    #: when ``run_store`` is ``sqlite``).
+    memory_db: Path = Path("outputs/campaign_forge.db")
+    run_store: Literal["json", "sqlite"] = "json"
+    #: Remember completed CLI runs as searchable campaign history.
+    memory_history: bool = True
 
     @field_validator("log_level", mode="before")
     @classmethod

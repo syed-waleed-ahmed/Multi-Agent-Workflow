@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from ...core.agent import AgentCategory, AgentLimits, AgentOutput, AgentSpec, InputSpec
 from ...core.context import RunContext
 from ...domain.artifacts import Artifact, ProducedBy
+from ...domain.brand import BRAND_KIND, BrandProfile
 from ...domain.provenance import Claim, Evidence
 from ...domain.review import REVIEW_FEEDBACK_INPUT, REVIEW_KIND, ReviewResult
 from ...domain.usage import TokenUsage
@@ -35,6 +36,7 @@ from ..schemas import BRIEF_KIND, MODELS_BY_KIND
 
 FEEDBACK = InputSpec(name=REVIEW_FEEDBACK_INPUT, kind=REVIEW_KIND, required=False)
 BRIEF = InputSpec(name="brief", kind=BRIEF_KIND)
+OPTIONAL_BRAND = InputSpec(name="brand", kind=BRAND_KIND, required=False)
 
 JSON_ONLY = "Respond with a single valid JSON object and nothing else."
 
@@ -78,6 +80,22 @@ def brief_of(inputs: Mapping[str, Artifact]) -> CampaignBrief:
 
 def framed_brief(inputs: Mapping[str, Artifact]) -> str:
     return frame_untrusted(brief_of(inputs).as_prompt_context(), label="campaign brief")
+
+
+def brand_of(inputs: Mapping[str, Artifact]) -> BrandProfile | None:
+    return inputs["brand"].as_model(BrandProfile) if "brand" in inputs else None
+
+
+def framed_brand(inputs: Mapping[str, Artifact]) -> str:
+    """The brand profile as framed data plus a blank line, or "" when there is none.
+
+    A stored profile is user data (it may have been edited by hand or produced by
+    a model), so it is framed like any other untrusted input.
+    """
+    brand = brand_of(inputs)
+    if brand is None:
+        return ""
+    return f"Brand profile:\n{frame_untrusted(brand.digest(), label='brand profile')}\n\n"
 
 
 def digest(artifact: Artifact) -> str:
@@ -201,13 +219,16 @@ class StructuredAgent(ABC):
 __all__ = [
     "BRIEF",
     "FEEDBACK",
+    "OPTIONAL_BRAND",
     "AgentCategory",
     "InputSpec",
     "StructuredAgent",
+    "brand_of",
     "brief_of",
     "context",
     "digest",
     "feedback_section",
+    "framed_brand",
     "framed_brief",
     "make_spec",
     "produced_by",

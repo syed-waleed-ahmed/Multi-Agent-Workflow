@@ -1,19 +1,21 @@
 """The 2.0 agent library, wave 1 (docs/AGENT_CATALOG.md).
 
-Thirteen agents, each with a distinct output contract (11 from wave 1, plus the
-Session 4 evidence agents ``competitor_research`` and ``fact_checker``):
+Fifteen agents, each with a distinct output contract (11 from wave 1, the Session 4
+evidence agents ``competitor_research`` and ``fact_checker``, and the Session 5 brand
+agents ``brand_strategist`` and ``brand_consistency``):
 
 * research: ``audience_research``, ``market_research``, ``competitor_research``
-* strategy: ``positioning``, ``marketing_strategist``
+* strategy: ``positioning``, ``marketing_strategist``, ``brand_strategist``
 * content: ``copywriter``, ``ad_copy``, ``social_media``, ``email_marketing``
 * creative: ``art_director``
-* quality: ``critic``, ``fact_checker``
+* quality: ``critic``, ``fact_checker``, ``brand_consistency``
 * synthesis: ``campaign_reporter``
 """
 
 from __future__ import annotations
 
 from ...core.registry import AgentRegistry
+from .brand import BrandConsistencyAgent, BrandStrategistAgent
 from .content import AdCopyAgent, CopywriterAgent, EmailMarketingAgent, SocialMediaAgent
 from .creative import ArtDirectionAgent
 from .quality import CriticAgent, FactCheckerAgent, JudgeVerdict, rubric_score
@@ -35,6 +37,8 @@ LIBRARY_AGENTS: tuple[type, ...] = (
     CampaignReporterAgent,
     CompetitorResearchAgent,
     FactCheckerAgent,
+    BrandStrategistAgent,
+    BrandConsistencyAgent,
 )
 
 
@@ -49,6 +53,8 @@ __all__ = [
     "AdCopyAgent",
     "ArtDirectionAgent",
     "AudienceResearchAgent",
+    "BrandConsistencyAgent",
+    "BrandStrategistAgent",
     "CampaignReporterAgent",
     "CompetitorResearchAgent",
     "CopywriterAgent",

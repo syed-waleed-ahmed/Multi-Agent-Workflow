@@ -38,7 +38,7 @@ from ..schemas import (
     FactCheck,
     FactCheckVerdicts,
 )
-from .common import AgentCategory, digest, make_spec, produced_by
+from .common import OPTIONAL_BRAND, AgentCategory, digest, framed_brand, make_spec, produced_by
 
 #: Score ceiling when a deterministic critical check fails.
 CRITICAL_FAILURE_CAP = 0.4
@@ -73,7 +73,7 @@ class CriticAgent:
         "Critic",
         "Reviews any artifact against deterministic checks and a kind-specific rubric.",
         category=AgentCategory.QUALITY,
-        inputs=(InputSpec(name="brief", kind=BRIEF_KIND, required=False),),
+        inputs=(InputSpec(name="brief", kind=BRIEF_KIND, required=False), OPTIONAL_BRAND),
         output_kind=REVIEW_KIND,
         capabilities=("review", "quality_assurance"),
         rubric=("calibration",),
@@ -104,7 +104,7 @@ class CriticAgent:
             or "- none"
         )
         user = (
-            f"{brief_block}Work under review ({subject.kind}):\n"
+            f"{brief_block}{framed_brand(inputs)}Work under review ({subject.kind}):\n"
             f"{frame_untrusted(_render(subject), label='work under review')}\n\n"
             f"Automated checks:\n{automated}\n\n"
             f"Score each criterion from 1 (poor) to 5 (excellent): {', '.join(criteria)}. "

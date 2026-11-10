@@ -351,3 +351,109 @@ All 82 v1 test functions still pass unmodified.
 ### Next session: starting instructions
 
 See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
+
+---
+
+## Session 4 - Tools and evidence-backed research (2026-11-10)
+
+**Goal:** research grounded in retrieved evidence, with citations that can be checked, and no way for a model to make the system fetch a URL.
+
+**Owner input:** "do it yourself and continue", in reply to the requests to approve live Groq runs and commits. Read as approval for both, on a feature branch.
+
+### What was done
+
+- **Tools** (`tools/`):
+  - the tool protocol, per-agent allowlists, a tool-call budget, and a run-level evidence store;
+  - Wikipedia search (keyless, the default), optional Tavily, `SafeFetcher` for user-supplied URLs only, and user sources.
+- **SSRF guard** (`security/url_safety.py`): http(s) only; no embedded credentials; ports 80/443; every resolved address must be public (IPv4-mapped IPv6 included). It is re-checked on every redirect, and robots.txt and the size, time and type caps apply.
+- **Evidence research.**
+  - The research agents plan queries, retrieve evidence, then synthesise. Citations are evidence ids, validated against the evidence actually retrieved, and artifacts embed what they cite.
+  - New agents: `competitor_research` (named competitors only) and `fact_checker`.
+  - New `competitor-report` template.
+- **Live verification, first runs.**
+  - Run 1 found D11 (retired default model, ADR-028) and D12-D15: output cap, "Request too large", truncation, step timeouts (ADR-030).
+  - Run 2 found that v1 answers need about 940 tokens. The legacy `max_tokens` was raised from 800 to 1,000. Run 2 also found that parallel requests starve each other under the output cap (D16, fixed in Session 5).
+- **Commits:**
+  - `87e071c` (Sessions 1-3) and `fc0398e` (Session 4) on `feature/campaign-forge-2.0`, fast-forwarded to `main` and pushed at the owner's request.
+  - `b15c8f7`: the repository URLs pointed at a repository that does not exist.
+  - `45c7401` and `335226a`: two CI-only failures, from an unpinned ruff and a timestamp comparison that depends on clock resolution. CI is green on Python 3.10-3.13.
+
+### Tests run
+
+532 tests at the Session 4 commit, plus the CI matrix. Measured gates and live results are in [BUILD_STATUS.md](BUILD_STATUS.md).
+
+---
+
+## Session 5 - Memory and persistence (2026-11-10)
+
+**Goal:** brand profiles, campaign history and notes that persist, stay in one tenant's scope, can be searched and deleted, and never store a secret. Plus the brand agents, which use them.
+
+**Owner input:** "Continue with the commit and push to the main branch and start the next phases".
+
+### What was done
+
+- **Memory** (`memory/`, layer 2):
+  - the `MemoryStore` protocol (scope on every call) and `SqliteMemoryStore` on the stdlib `sqlite3`;
+  - FTS5 with BM25 ranking, and a LIKE fallback with a stale-index rebuild;
+  - redaction of every string before it is written;
+  - per-scope limits, `delete_scope`, and a schema version guard (ADR-031).
+- **Runs and history.** `SqliteRunStore` (`CF_RUN_STORE=sqlite`) passes the run-store contract tests. `orchestration/history.py` remembers completed runs as `campaign` documents keyed by run id.
+- **Brand.**
+  - `domain/brand.py`: `BrandProfile` (`brand.profile@1`), `brand_slug`, and whole-word `term_counts`.
+  - New agents: `brand_strategist` and `brand_consistency` (terms counted by code; the model judges only the tone; code decides pass).
+  - The copywriter accepts a brand: banned terms become contract violations through validation context, so they are repaired. The critic sees the brand.
+- **Templates.**
+  - New `brand-kit`.
+  - Every content template accepts an optional `brand`. `full-campaign` adds `brand_check`, which runs only when a brand is given, and its report renders the profile and the check (they are never listed as "not produced").
+  - Validation now lets a required agent input bind an optional workflow input only behind an `exists` condition on it.
+  - The scheduler evaluates conditions before missing inputs, so the skip reason is accurate.
+- **CLI:**
+  - `memory brand save|list|show|delete`, `memory note`, `memory search`, `memory list`;
+  - `memory forget` (refuses without `--yes`; `--runs` also deletes runs);
+  - `execute --brand`;
+  - completed runs are remembered after `execute`, `resume` and `approve`.
+- **Free-tier fixes from live run 3 (ADR-032):**
+  - D16: Groq requests are serialised (`max_concurrency` 1, `CF_PROVIDER_CONCURRENCY`).
+  - D17: the v1 manager (2,000 tokens) and the reporter use the `strong` class (`openai/gpt-oss-120b`), verified by a live probe that returned 2,500 tokens.
+  - D18: auto-resume (`run_until_settled`, `execute --auto-resume N`) waits out rate limits only, never an exhausted quota.
+
+### Live run 3 (measured, not passed)
+
+- **v1 eval** (2 briefs): `baseline-ecommerce` failed. The research answer truncated at 1,000 tokens and recovered with the concise re-ask, then the manager truncated, even after its re-ask (D17). `prompt-injection` hit the daily quota: 200,000 tokens per day, 198,869 used.
+- **`full-campaign`:** paused, quota exhausted, after 11 admitted calls. Only one call was answered (961 tokens), and the rest were refused by the quota. Three auto-resumes crawled (D18).
+
+### Errors found and fixed during the session
+
+1. **Heredoc escaping.** The Bash heredoc trap from Session 3 struck twice: `\n` arrived as a real newline. The affected edits were redone with the Edit tool or with scripts written to files.
+2. **A LIKE-fallback test assumption.** Substring matching made `or` match inside "words". The behaviour is now documented, and the test text changed.
+3. **Test expectations.**
+   - `full-campaign` now has a `brand_check` step that is skipped without a brand.
+   - The registry has 15 agents.
+   - The kind-to-responder map excludes agents whose responder is not their payload.
+   - A completed run cannot move to failed, so the test copies the record instead.
+   - capsys buffers had to be drained between CLI calls.
+
+### Files created
+
+- `src/campaign_forge/memory/` (`__init__.py`, `base.py`, `sqlite.py`)
+- `src/campaign_forge/domain/brand.py`, `src/campaign_forge/agents/library/brand.py`
+- `src/campaign_forge/orchestration/history.py`, `src/campaign_forge/cli_memory.py`
+- `tests/test_memory.py`, `tests/test_brand.py`
+
+### Tests run
+
+| Command | Result |
+| --- | --- |
+| `ruff check`, `ruff format --check` (src, tests, evals) | Pass |
+| `mypy src` (strict, 78 files) | Pass |
+| `pytest --cov=campaign_forge` | 594 passed, 98% branch coverage |
+| Offline evals: v1, `full-campaign`, `brand-kit`, `competitor-report` | 10/10 each |
+
+### Not done
+
+- **The Postgres (Supabase) memory store:** deferred. No test database is available (ADR-031).
+- **Live acceptance (S1-02, S3-05):** waits for the daily quota to refill.
+
+### Next session: starting instructions
+
+See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".

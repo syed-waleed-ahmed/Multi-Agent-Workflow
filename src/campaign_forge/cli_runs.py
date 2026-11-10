@@ -1,8 +1,10 @@
 """CLI commands for the 2.0 engine: agents, workflows, execute and run management.
 
-Runs started with ``execute`` are checkpointed to ``CF_RUNS_DIR`` (default
-``outputs/runs``) after every step. They can be inspected, resumed after a pause,
-approved, or cancelled from later CLI invocations.
+Runs started with ``execute`` are checkpointed after every step: to JSON files in
+``CF_RUNS_DIR`` (default ``outputs/runs``), or to the SQLite file ``CF_MEMORY_DB``
+when ``CF_RUN_STORE=sqlite``. They can be inspected, resumed after a pause,
+approved, or cancelled from later CLI invocations. Completed runs are remembered
+as campaign history (``CF_MEMORY_HISTORY``, on by default; see ``memory search``).
 
 Exit codes for ``execute``, ``runs resume`` and ``runs approve``:
 
@@ -26,14 +28,16 @@ from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
+from .cli_memory import build_memory, load_brand
 from .config import Settings
 from .evaluation.offline import OfflineSearch, offline_responder
-from .exceptions import ConfigurationError
+from .exceptions import ConfigurationError, MemoryStoreError
 from .loaders import load_briefs
 from .orchestration.definition import WorkflowDefinition, load_definition, validate_definition
 from .orchestration.engine import RunResult, WorkflowEngine
+from .orchestration.history import remember_run
 from .orchestration.state import RunRecord, RunStatus
-from .orchestration.store import JsonFileRunStore
+from .orchestration.store import JsonFileRunStore, RunStore, SqliteRunStore
 from .orchestration.templates import BUILTIN_TEMPLATES, default_registry, get_template
 from .providers.fake import FakeProvider
 from .providers.router import ProviderRouter
@@ -65,12 +69,12 @@ def build_engine(settings: Settings) -> WorkflowEngine:
         tools = ToolBox([OfflineSearch()])
     else:
         tools = build_toolbox(settings)
-    return WorkflowEngine(
-        default_registry(load_plugins=True),
-        router,
-        store=JsonFileRunStore(settings.runs_dir),
-        tools=tools,
+    store: RunStore = (
+        SqliteRunStore(settings.memory_db)
+        if settings.run_store == "sqlite"
+        else JsonFileRunStore(settings.runs_dir)
     )
+    return WorkflowEngine(default_registry(load_plugins=True), router, store=store, tools=tools)
 
 
 def add_engine_commands(subparsers: Any, common: Any) -> None:
@@ -104,6 +108,10 @@ def add_engine_commands(subparsers: Any, common: Any) -> None:
         default=0,
         metavar="N",
         help="Resume up to N times after a rate-limit pause (waits out the hint)",
+    )
+    execute.add_argument(
+        "--brand",
+        help="A stored brand name (see 'memory brand list') or a brand profile .json file",
     )
     execute.add_argument(
         "--sources",
@@ -215,6 +223,10 @@ def cmd_execute(args: argparse.Namespace, console: Console, settings: Settings) 
         if definition.input_kind("sources") is None:
             raise ConfigurationError(f"Workflow {definition.id!r} does not accept --sources.")
         inputs["sources"] = load_sources(args.sources)
+    if args.brand:
+        if definition.input_kind("brand") is None:
+            raise ConfigurationError(f"Workflow {definition.id!r} does not accept --brand.")
+        inputs["brand"] = load_brand(args.brand, settings)
     engine = build_engine(settings)
     result = engine.start(definition, inputs)
     if args.auto_resume > 0:
@@ -318,9 +330,26 @@ def _render(console: Console, record: RunRecord, as_json: bool) -> None:
         )
 
 
+def _remember(console: Console, record: RunRecord, settings: Settings, quiet: bool) -> None:
+    """Add a completed run to campaign history. A memory problem never fails the run."""
+    if not settings.memory_history or record.status is not RunStatus.COMPLETED:
+        return
+    try:
+        with build_memory(settings) as memory:
+            document = remember_run(memory, record)
+    except MemoryStoreError as exc:
+        if not quiet:
+            reason = escape(str(exc))
+            console.print(f"[yellow]Not remembered in campaign history:[/yellow] {reason}")
+        return
+    if document is not None and not quiet:
+        console.print(f"[dim]Remembered in campaign history ({document.id}).[/dim]")
+
+
 def _report(console: Console, result: RunResult, as_json: bool, settings: Settings) -> int:
     record = result.record
     _render(console, record, as_json)
+    _remember(console, record, settings, quiet=as_json)
     if not as_json:
         if any(e.data.get("provider") == "fake" for e in record.events):
             console.print("[yellow]SIMULATED: offline responder output, not a real model.[/yellow]")

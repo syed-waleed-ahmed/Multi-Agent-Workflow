@@ -255,7 +255,10 @@ def test_many_channel_briefs_fit_the_plan_and_ad_contracts() -> None:
     brief = BRIEF.model_copy(update={"channels": channels})
     result = engine.start(get_template("full-campaign"), {"brief": brief})
     assert result.ok
-    assert {s for s, st in result.record.steps.items() if st.status.value != "succeeded"} == set()
+    # Everything ran except the brand check, which needs a brand input.
+    not_run = {s for s, st in result.record.steps.items() if st.status.value != "succeeded"}
+    assert not_run == {"brand_check"}
+    assert result.record.steps["brand_check"].skip_reason.value == "condition"
     ad_prompt = (
         next(r for r in fake.requests if r.metadata["agent"] == "ad_copy").messages[1].content
     )

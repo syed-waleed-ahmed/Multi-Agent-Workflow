@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from campaign_forge.config import Settings
+from campaign_forge.config import Settings, get_settings
 from campaign_forge.models import CampaignBrief, CampaignResult, CopyContent
 
 RESEARCH_TEXT = "## Audience\n- Eco-conscious professionals\n\n## Trends\n- Reusable everything"
@@ -43,6 +43,15 @@ MANAGER_TEXT = (
     "palette.\n\n"
     "## Deliverables\nFour Instagram posts, two stories, and a three-email launch sequence."
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolated_memory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):  # type: ignore[no-untyped-def]
+    """CLI runs remember completed campaigns: keep that database out of the working tree."""
+    monkeypatch.setenv("CF_MEMORY_DB", str(tmp_path / "memory" / "campaign_forge.db"))
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 class FakeLLM:

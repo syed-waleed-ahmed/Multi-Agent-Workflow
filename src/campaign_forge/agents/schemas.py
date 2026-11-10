@@ -26,6 +26,7 @@ from pydantic import (
     model_validator,
 )
 
+from ..domain.brand import BRAND_KIND, BrandProfile, term_counts
 from ..domain.provenance import Basis, Claim
 from ..domain.review import REVIEW_KIND, ReviewResult
 from ..domain.sources import SOURCES_KIND, SourceBundle
@@ -44,6 +45,7 @@ VISUALS_KIND = "creative.visual_concepts@1"
 REPORT_KIND = "report.campaign_brief@1"
 COMPETITORS_KIND = "research.competitors@1"
 FACT_CHECK_KIND = "quality.fact_check@1"
+BRAND_CHECK_KIND = "quality.brand_check@1"
 
 Short = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=800)]
@@ -398,6 +400,23 @@ class CoreCopy(BaseModel):
     body_copy: Long
     call_to_action: Short
 
+    @model_validator(mode="after")
+    def _no_banned_terms(self, info: ValidationInfo) -> CoreCopy:
+        """With a brand in play (validation context ``banned_terms``), banned terms are errors."""
+        banned = _context(info).get("banned_terms") or ()
+        used = sorted(term for term, n in term_counts(self.text(), banned).items() if n)
+        if used:
+            raise ValueError(
+                f"the copy uses the brand's banned term(s) {', '.join(map(repr, used))}; "
+                "rewrite it without them"
+            )
+        return self
+
+    def text(self) -> str:
+        """Every line of copy, for vocabulary checks."""
+        parts = [self.tagline, self.primary_message, *self.headlines, self.body_copy]
+        return "\n".join([*parts, self.call_to_action])
+
     def digest(self) -> str:
         return (
             f"Tagline: {self.tagline}\nPrimary message: {_clip(self.primary_message, 300)}\n"
@@ -648,6 +667,71 @@ class VisualConcepts(BaseModel):
 
 
 # --------------------------------------------------------------------------- #
+# Brand
+# --------------------------------------------------------------------------- #
+#: Minimum model-judged tone score (0-1) for a brand check to pass.
+BRAND_TONE_THRESHOLD = 0.5
+
+
+class TermHit(BaseModel):
+    term: str
+    deliverable: str
+    count: int = Field(ge=1)
+
+
+class ToneVerdict(BaseModel):
+    """What the model judge returns for a brand check: one 1-5 score and short notes."""
+
+    score: int = Field(ge=1, le=5)
+    notes: list[Text] = Field(default_factory=list, max_length=5)
+
+
+class BrandCheck(BaseModel):
+    """Vocabulary checked by code plus a model-judged tone score; ``passed`` is set by code."""
+
+    brand: Short
+    checked: list[str] = Field(default_factory=list)
+    banned_hits: list[TermHit] = Field(default_factory=list)
+    preferred_used: list[str] = Field(default_factory=list)
+    preferred_missing: list[str] = Field(default_factory=list)
+    tone_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    tone_notes: list[str] = Field(default_factory=list, max_length=5)
+    passed: bool = False
+
+    @model_validator(mode="after")
+    def _verdict(self) -> BrandCheck:
+        tone_ok = self.tone_score is None or self.tone_score >= BRAND_TONE_THRESHOLD
+        self.passed = not self.banned_hits and tone_ok
+        return self
+
+    def digest(self) -> str:
+        preferred = len(self.preferred_used) + len(self.preferred_missing)
+        tone = "not judged" if self.tone_score is None else f"{self.tone_score:.2f}"
+        return (
+            f"Brand check ({self.brand}): {'passed' if self.passed else 'needs work'}; "
+            f"{sum(h.count for h in self.banned_hits)} banned-term use(s); tone {tone}; "
+            f"preferred terms used {len(self.preferred_used)}/{preferred}"
+        )
+
+    def to_markdown(self) -> str:
+        lines = [f"**Result:** {self.digest()}"]
+        if self.banned_hits:
+            rows = "\n".join(
+                f"| {_cell(hit.term)} | {_cell(hit.deliverable)} | {hit.count} |"
+                for hit in self.banned_hits
+            )
+            lines.append(
+                "**Banned terms found:**\n\n| Term | Deliverable | Uses |\n| --- | --- | --- |\n"
+                + rows
+            )
+        if self.preferred_missing:
+            lines.append(f"**Preferred terms not used:** {', '.join(self.preferred_missing)}")
+        if self.tone_notes:
+            lines.append("**Tone notes:**\n" + "\n".join(f"- {n}" for n in self.tone_notes))
+        return "\n\n".join(lines)
+
+
+# --------------------------------------------------------------------------- #
 # Report
 # --------------------------------------------------------------------------- #
 class CampaignReport(BaseModel):
@@ -676,4 +760,6 @@ MODELS_BY_KIND: dict[str, type[BaseModel]] = {
     SOURCES_KIND: SourceBundle,
     COMPETITORS_KIND: CompetitorResearch,
     FACT_CHECK_KIND: FactCheck,
+    BRAND_KIND: BrandProfile,
+    BRAND_CHECK_KIND: BrandCheck,
 }

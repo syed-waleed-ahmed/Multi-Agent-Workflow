@@ -70,6 +70,13 @@ Decisions made while building wave 1 are recorded in ADR-026 and ADR-027:
   `email-sequence`) all start with audience research, positioning and reviewed
   core copy, because every content agent needs the core copy.
 
+## 1b. Implementation notes (Session 5)
+
+- **The profile kind is `brand.profile@1`**, not `brand.guidelines@1`. It is a profile a writer follows: voice, tone words, values, `guidelines` (always), `avoid` (never), preferred and banned terms, and visual style.
+- **Banned terms are enforced, not just reported.** When a brand is bound, the copywriter's output contract rejects any banned term (whole words, case-insensitive), so the repair loop asks for a rewrite.
+- **`brand_consistency` makes one model call, for tone only.** Code counts banned and preferred terms in every content field and ignores code-written labels such as platform names and warnings. Code also sets `passed`: no banned term, and a tone score of at least 0.5.
+- **Optional brand input.** Every content template accepts `brand`. The critic sees it too, so reviews judge the copy against the brand's voice. `full-campaign` adds a `brand_check` step that runs only when a brand is given. The report includes the profile and the check.
+
 ## 2. Agent specification (every agent)
 
 ```text
@@ -110,7 +117,7 @@ the agent lands.
 | --- | --- | --- | --- | --- | --- |
 | `positioning` | `strategy.positioning@1` | Positioning statement, value propositions, feature-to-benefit ladder, messaging pillars, proof points needed | - | W1 | PositioningAgent, ProductResearchAgent |
 | `marketing_strategist` | `strategy.plan@1` | Objectives, KPIs, channel mix with rationale, phases. If the user gives a budget, code computes the allocation from model-proposed weights. | - | W1 | MarketingStrategistAgent |
-| `brand_strategist` | `brand.guidelines@1` | Voice and tone, do and don't lists, vocabulary, visual identity direction; written to Brand Memory | memory | S5 | BrandStrategistAgent, BrandIdentityAgent |
+| `brand_strategist` | `brand.profile@1` | Voice and tone, do and don't lists, vocabulary, visual identity direction; saved to brand memory with `memory brand save --run` | memory | **S5, implemented** | BrandStrategistAgent, BrandIdentityAgent |
 | `funnel_strategist` | `strategy.funnel@1` | Funnel stages, content per stage, conversion points, lead-magnet concepts | - | S8 | FunnelStrategyAgent; lead magnets |
 | `growth_strategist` | `strategy.growth@1` | Growth experiment backlog. The model proposes impact, confidence and ease; code computes ICE scores and ranks. | - | S8 | GrowthStrategyAgent |
 
@@ -155,7 +162,7 @@ the agent lands.
 | --- | --- | --- | --- | --- | --- |
 | `critic` | `quality.review@1` | Rubric scores per criterion, issues and revision instructions. Deterministic checks run first, then the LLM judge. Drives the bounded revision loop. | - | W1 | ContentQualityAgent, CreativeReviewAgent, the master prompt's "Reviewer Agent" |
 | `fact_checker` | `quality.fact_check@1` | Checks claims against the run's evidence store and marks each one supported, unsupported or contradicted | evidence store | S4 | FactCheckingAgent |
-| `brand_consistency` | `quality.brand_check@1` | Checks content against brand guidelines: deterministic term and vocabulary checks, plus an LLM tone check | memory | S5 | BrandConsistencyAgent; brand consistency checking |
+| `brand_consistency` | `quality.brand_check@1` | Checks content against brand guidelines: deterministic term and vocabulary checks, plus an LLM tone check | memory | **S5, implemented** | BrandConsistencyAgent; brand consistency checking |
 | `safety_reviewer` | `quality.safety@1` | Flags regulated or risky claims (health, finance, environmental "green" claims, unproven superlatives, discriminatory targeting). It raises flags only and gives no legal advice. | - | S8 | SafetyReviewAgent |
 
 ### Synthesis
@@ -209,7 +216,7 @@ constrained and validated.
 | `social-calendar` | `audience_research` -> `social_media` (reviewed) | S3 |
 | `email-sequence` | `positioning` -> `email_marketing` (reviewed) | S3 |
 | `competitor-report` | `competitor_research` -> `fact_checker` -> `campaign_reporter` (report mode) | S4 |
-| `brand-kit` | `audience_research` -> `positioning` -> `brand_strategist` -> `brand_consistency` | S5 |
+| `brand-kit` | `audience_research` -> `brand_strategist`, `positioning` -> reviewed `copywriter` (on brand) -> `brand_consistency` | **S5, implemented** |
 | `seo-content-pack` | `keyword_research` -> `seo_content_planner` -> `blog_writer` -> `seo_optimizer` | S8 |
 | `performance-review` | `performance_analyst` -> `experiment_designer` -> `growth_strategist` | S8 |
 | `ecommerce-campaign`, `b2b-campaign`, `product-launch`, `content-repurpose`, `landing-page` | Variants composed from the agents above | S8 |

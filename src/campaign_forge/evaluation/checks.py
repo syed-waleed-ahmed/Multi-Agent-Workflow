@@ -31,6 +31,7 @@ from ..agents.schemas import (
     SOCIAL_KIND,
 )
 from ..domain.artifacts import Artifact
+from ..domain.brand import BRAND_KIND
 from ..domain.provenance import unknown_evidence_ids
 from ..models import CampaignBrief
 
@@ -59,6 +60,7 @@ RUBRICS: Mapping[str, tuple[str, ...]] = {
     SOCIAL_KIND: ("on_brief", "platform_fit", "variety", "tone_match"),
     EMAIL_KIND: ("on_brief", "sequence_logic", "persuasiveness", "tone_match"),
     REPORT_KIND: ("on_brief", "completeness", "actionability", "clarity"),
+    BRAND_KIND: ("on_brief", "distinctiveness", "usability", "consistency"),
 }
 
 #: Sections every campaign report must contain (heading keywords, case-insensitive).

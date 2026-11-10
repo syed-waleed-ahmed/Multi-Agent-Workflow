@@ -170,3 +170,11 @@ class RunNotFoundError(CampaignForgeError):
 
 class ToolError(CampaignForgeError):
     """Raised when a research tool cannot return evidence (network, policy, limits)."""
+
+
+class MemoryStoreError(CampaignForgeError):
+    """Raised when the memory store refuses an operation (limits, invalid records)."""
+
+
+class MemoryNotFoundError(MemoryStoreError):
+    """Raised when a brand or memory document is unknown in the given scope."""

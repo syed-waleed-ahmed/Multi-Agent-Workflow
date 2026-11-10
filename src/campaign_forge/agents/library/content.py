@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, ClassVar
 
-from ...core.agent import InputSpec
+from ...core.agent import AgentOutput, InputSpec
+from ...core.context import RunContext
 from ...domain.artifacts import Artifact
 from ..schemas import (
     ADS_KIND,
@@ -24,10 +25,13 @@ from ..schemas import (
 )
 from .common import (
     BRIEF,
+    OPTIONAL_BRAND,
     AgentCategory,
     StructuredAgent,
+    brand_of,
     brief_of,
     context,
+    framed_brand,
     framed_brief,
     make_spec,
 )
@@ -58,7 +62,7 @@ class CopywriterAgent(StructuredAgent):
         "Copywriter",
         "Campaign core copy: tagline, primary message, headlines, body copy and CTA.",
         category=AgentCategory.CONTENT,
-        inputs=(BRIEF, POSITIONING, OPTIONAL_AUDIENCE),
+        inputs=(BRIEF, POSITIONING, OPTIONAL_AUDIENCE, OPTIONAL_BRAND),
         output_kind=CORE_COPY_KIND,
         capabilities=("copywriting", "tagline", "headlines"),
         rubric=("on_brief", "clarity", "persuasiveness", "tone_match", "memorability"),
@@ -77,12 +81,28 @@ class CopywriterAgent(StructuredAgent):
 
     def task(self, inputs: Mapping[str, Artifact]) -> str:
         brief = brief_of(inputs)
+        brand_rule = (
+            " Write in the brand profile's voice, use its preferred terms where they fit, and "
+            "never use its banned terms."
+            if "brand" in inputs
+            else ""
+        )
         return (
-            f"Campaign brief:\n{framed_brief(inputs)}\n\n"
+            f"Campaign brief:\n{framed_brief(inputs)}\n\n{framed_brand(inputs)}"
             f"{context(inputs, 'positioning', 'audience')}\n\n"
             f"Task: write the campaign's core copy in a {brief.tone} tone: a tagline, a 2-3 "
             "sentence primary message, 3-5 headlines, a body-copy paragraph, and a call to "
             f"action. Mention {brief.product_name} by name. Only claim what the brief supports."
+            f"{brand_rule}"
+        )
+
+    def run(self, inputs: Mapping[str, Artifact], ctx: RunContext) -> AgentOutput:
+        brand = brand_of(inputs)
+        if brand is None or not brand.banned_terms:
+            return self.produce(inputs, ctx)
+        # A banned term is a contract violation, so the repair loop asks for a rewrite.
+        return self.produce(
+            inputs, ctx, validation_context={"banned_terms": list(brand.banned_terms)}
         )
 
 

@@ -21,7 +21,7 @@ from .state import (
     StepState,
     StepStatus,
 )
-from .store import InMemoryRunStore, JsonFileRunStore, RunStore
+from .store import InMemoryRunStore, JsonFileRunStore, RunStore, SqliteRunStore
 from .templates import (
     BUILTIN_TEMPLATES,
     DEFAULT_TEMPLATE,
@@ -47,6 +47,7 @@ __all__ = [
     "RunResult",
     "RunStatus",
     "RunStore",
+    "SqliteRunStore",
     "SkipReason",
     "StepDefinition",
     "StepState",

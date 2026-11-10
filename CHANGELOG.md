@@ -8,6 +8,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Memory and persistence (Session 5, ADR-031).**
+  - `campaign_forge.memory`: a scoped `MemoryStore`, and `SqliteMemoryStore` on the stdlib `sqlite3` module. It stores brand profiles, campaign history and notes.
+  - FTS5 search with BM25 ranking, plus a LIKE fallback when the SQLite build lacks FTS5.
+  - Every string is redacted before it is stored.
+  - `delete_scope` removes everything a tenant stored.
+  - `SqliteRunStore` (`CF_RUN_STORE=sqlite`) keeps runs in the same file.
+  - Completed CLI runs are remembered as searchable campaign history (`CF_MEMORY_HISTORY`).
+- **Brand profiles and brand agents.**
+  - `brand.profile@1`: voice, tone words, values, always/never guidelines, preferred and banned terms, and visual style.
+  - New agents: `brand_strategist` writes a profile; `brand_consistency` counts banned and preferred terms by code and has a model judge only the tone.
+  - The copywriter (and its critic) follows an optional brand. With a brand bound, banned terms are contract violations, so they are repaired.
+- **New `brand-kit` template.** Every content template accepts an optional `brand` input. `full-campaign` adds a brand check when one is given, and its report includes the profile and the check.
+- **CLI:**
+  - `memory brand save|list|show|delete`, `memory note`, `memory search`, `memory list`;
+  - `memory forget --yes [--runs]` (refuses without `--yes`);
+  - `execute --brand <name or file.json>`;
+  - `execute --auto-resume N` waits out rate-limit pauses (ADR-032).
+- **`CF_PROVIDER_CONCURRENCY`:** a per-provider limit on requests in flight (Groq defaults to 1).
 - **Evidence-backed research (Session 4, ADR-029).**
   - `campaign_forge.tools`: Wikipedia search (keyless, the default), optional Tavily search (`TAVILY_API_KEY`), a guarded `SafeFetcher` for user-supplied URLs, and user sources from `.txt`, `.md`, `.csv` and `.json` files.
   - SSRF defence (`security/url_safety.py`), re-checked on every redirect, plus robots.txt handling and size, time and content-type caps.
@@ -88,6 +106,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **D16: parallel requests starved each other on Groq's free tier.** Under the 1,000 output-token/minute cap, two requests in flight exhausted their retries and paused the run. Groq requests are now serialised (ADR-032).
+- **D17: the v1 final brief overflowed the output cap.** It needs more than 1,000 tokens even when asked to be concise. The v1 manager (2,000 tokens) and the campaign reporter now use the `strong` model class, `openai/gpt-oss-120b` on Groq, which returned 2,500 tokens in one request in a live probe.
+- **D18: auto-resume crawled on an exhausted daily quota.** A daily quota's short retry hint frees room for about one call. Only rate-limit pauses are auto-resumed now.
 - **D11: retired default model.** Groq retired `llama-3.1-8b-instant`, the default since v1, so every live run returned a 404. The default is now `qwen/qwen3.8-27b`, verified live (ADR-028). A `model_not_found` error now explains how to list the available models.
 - **D12: requests above the output cap.** Groq's free tier rejects requests whose `max_tokens` exceeds its 1,000-token output limit. Profiles now carry per-model output caps, and requests are clamped to them (ADR-030).
 - **D13: "Request too large" treated as a rate limit.** It was retried and then paused the run. It is now a non-retryable bad request with advice.

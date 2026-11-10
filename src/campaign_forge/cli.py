@@ -33,6 +33,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__
+from .cli_memory import add_memory_commands
 from .cli_runs import add_engine_commands
 from .config import MAX_WORKERS, Settings, apply_overrides, get_settings
 from .exceptions import CampaignForgeError, ConfigurationError
@@ -48,7 +49,7 @@ _BRIEF_FIELDS: list[tuple[str, str, str]] = [
     ("goal", "--goal", "Campaign goal"),
     ("tone", "--tone", "Desired tone (e.g. friendly, premium)"),
 ]
-_KNOWN_COMMANDS = {"run", "batch", "agents", "workflows", "execute", "runs"}
+_KNOWN_COMMANDS = {"run", "batch", "agents", "workflows", "execute", "runs", "memory"}
 
 
 # --------------------------------------------------------------------------- #
@@ -107,6 +108,7 @@ def build_parser() -> argparse.ArgumentParser:
     batch_parser.set_defaults(func=cmd_batch)
 
     add_engine_commands(subparsers, _add_common_arguments)
+    add_memory_commands(subparsers, _add_common_arguments)
     return parser
 
 

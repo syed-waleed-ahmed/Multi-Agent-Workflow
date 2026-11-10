@@ -19,6 +19,7 @@ from collections.abc import Mapping
 from ...core.agent import AgentOutput, InputSpec
 from ...core.context import RunContext
 from ...domain.artifacts import Artifact
+from ...domain.brand import BRAND_KIND
 from ...domain.provenance import Basis, Evidence
 from ...evaluation.checks import REPORT_SECTIONS, missing_sections
 from ...exceptions import OutputParsingError
@@ -27,6 +28,7 @@ from ...security.untrusted import with_untrusted_policy
 from ..schemas import (
     ADS_KIND,
     AUDIENCE_KIND,
+    BRAND_CHECK_KIND,
     CORE_COPY_KIND,
     EMAIL_KIND,
     MARKET_KIND,
@@ -62,9 +64,13 @@ _SOURCES: tuple[tuple[str, str, str], ...] = (
     ("social", SOCIAL_KIND, "Social calendar"),
     ("email", EMAIL_KIND, "Email sequence"),
     ("visuals", VISUALS_KIND, "Visual concepts and image prompts"),
+    ("brand", BRAND_KIND, "Brand profile"),
+    ("brand_check", BRAND_CHECK_KIND, "Brand check"),
 )
 #: Inputs the report needs in order to be meaningful.
 _REQUIRED = {"copy"}
+#: Inputs that only some runs have (a brand is optional), so their absence is not reported.
+_EXTRAS = {"brand", "brand_check"}
 
 
 def _render(artifact: Artifact) -> str | None:
@@ -163,7 +169,8 @@ class CampaignReporterAgent:
         for name, kind, title in _SOURCES:
             artifact = inputs.get(name)
             if artifact is None:
-                missing.append(title)
+                if name not in _EXTRAS:
+                    missing.append(title)
                 continue
             rendered = _render(artifact) if kind not in (AUDIENCE_KIND, MARKET_KIND) else None
             if rendered:

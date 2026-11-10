@@ -31,6 +31,8 @@ from campaign_forge.orchestration import (
     RuleBasedPlanner,
     RunRecord,
     RunStatus,
+    RunStore,
+    SqliteRunStore,
     StepStatus,
     TemplateInfo,
     classic_campaign,
@@ -286,12 +288,23 @@ def test_outputs_only_include_succeeded_steps_and_events_are_capped() -> None:
 # --------------------------------------------------------------------------- #
 # Stores
 # --------------------------------------------------------------------------- #
-@pytest.mark.parametrize("kind", ["memory", "file"])
+def _store(kind: str, tmp_path: Path) -> RunStore:
+    if kind == "memory":
+        return InMemoryRunStore()
+    if kind == "file":
+        return JsonFileRunStore(tmp_path)
+    return SqliteRunStore(tmp_path / "campaign_forge.db")
+
+
+@pytest.mark.parametrize("kind", ["memory", "file", "sqlite"])
 def test_store_round_trip_and_scope_isolation(kind: str, tmp_path: Path) -> None:
-    store = InMemoryRunStore() if kind == "memory" else JsonFileRunStore(tmp_path)
+    store = _store(kind, tmp_path)
     record = _record()
     store.save(record)
     assert store.load("run-test", Scope.local()).run_id == "run-test"
+    record.set_status(RunStatus.PLANNING, "saved again")
+    store.save(record)  # saving again replaces the record
+    assert store.load("run-test", Scope.local()).status is RunStatus.PLANNING
     other = Scope(org_id="acme", user_id="u1")
     with pytest.raises(RunNotFoundError):
         store.load("run-test", other)
@@ -315,6 +328,19 @@ def test_file_store_encodes_scope_and_rejects_bad_ids(tmp_path: Path) -> None:
     for bad in ("../x", "a/b", "", "x" * 80):
         with pytest.raises(RunNotFoundError, match="Invalid run id"):
             store.load(bad, weird)
+
+
+def test_sqlite_store_is_durable_and_rejects_bad_ids(tmp_path: Path) -> None:
+    path = tmp_path / "state" / "campaign_forge.db"
+    with SqliteRunStore(path) as store:
+        store.save(_record())
+        for bad in ("../x", "x" * 80):
+            with pytest.raises(RunNotFoundError, match="Invalid run id"):
+                store.load(bad, Scope.local())
+    with SqliteRunStore(path) as reopened:
+        assert [r.run_id for r in reopened.list_runs(Scope.local())] == ["run-test"]
+        with pytest.raises(RunNotFoundError):
+            reopened.delete("run-other", Scope.local())
 
 
 # --------------------------------------------------------------------------- #

@@ -339,3 +339,35 @@ This file is an append-only log of the significant decisions behind Campaign For
 - **Consequences.**
   - A free-tier full campaign is slow (roughly 15 calls at about one per minute) but bounded.
   - Higher-throughput tiers, or other providers, simply skip the waits.
+
+## ADR-031 Memory on stdlib SQLite; Postgres deferred until it can be tested
+
+- **Context.** Session 5 needs brand profiles, campaign history and notes that persist between runs, are searchable, belong to exactly one tenant, and can be deleted completely. The roadmap names Supabase Postgres as the hosted option. No Postgres database is available to test against, and a Supabase project needs the owner's account.
+- **Decision.**
+  - **Storage.** `campaign_forge.memory` (layer 2) defines a scoped `MemoryStore` protocol. `SqliteMemoryStore` implements it with the stdlib `sqlite3` module, so there is no new dependency and no server. A file database uses WAL. `":memory:"` gives a store that lives only as long as the object, for tests and the public demo (ADR-008).
+  - **Scope on every call.** Every query filters on `org_id` and `user_id`. No method reads across scopes. `delete_scope` removes a tenant's brands, documents and index entries in one transaction.
+  - **Redaction before storage.** Every string written is redacted first: brand fields, titles, text and metadata values. That covers configured secret values and key-shaped strings. A test reads every table, the FTS shadow tables included, and asserts that no secret is present.
+  - **Search.** FTS5 with BM25 ranking, title weighted above body, when the SQLite build has FTS5. Otherwise a LIKE scan ranked by term counts. Queries are reduced to quoted word tokens, so FTS5 syntax and LIKE wildcards in a query are inert. Writes made without FTS5 mark the index stale, and the next FTS5-capable open rebuilds it.
+  - **Limits.** Per scope: 100 brands and 2,000 documents of at most 20,000 characters each.
+  - **Runs.** `SqliteRunStore` (`CF_RUN_STORE=sqlite`) can share the memory file. It passes the same contract tests as the in-memory and JSON-file stores. JSON files stay the default.
+  - **History.** A completed CLI run is remembered as a `campaign` document: the brief and a digest of each output, keyed by run id, so remembering it again replaces it. `CF_MEMORY_HISTORY=false` turns this off.
+  - **Memory is data.** A brand profile reaches prompts only inside untrusted-data framing (label `brand profile`), like every other input.
+  - **Postgres is deferred.** It will not ship until it can be tested against a real database. The protocol is the seam it will implement.
+- **Consequences.**
+  - Local and single-instance deployments get durable, searchable memory with zero setup.
+  - Multi-instance hosting needs the Postgres store first.
+  - LIKE-fallback search matches substrings, so it is less precise than FTS5. A test runs every store behaviour on both paths.
+
+## ADR-032 Free-tier throughput: serialised requests, rate-limit auto-resume, long outputs on the strong model
+
+- **Context.** The live runs after ADR-030 (2026-11-10) found three more limits:
+  - **Parallel requests.** Two requests in flight under the 1,000 output-token/minute cap displaced each other until both exhausted their retries, and the run paused.
+  - **Daily quota.** `qwen/qwen3.8-27b` also has a rolling daily quota of 200,000 tokens (from the 429 message). A day of development runs used it up: "Used 198869". Its retry hint (about 77 s) frees room for about one call, so resuming crawled.
+  - **Long outputs.** The v1 manager's final brief overflowed 1,000 tokens even after the concise re-ask (D17). A live probe of `openai/gpt-oss-120b` (the `strong` class) returned 2,500 completion tokens in one request, with 11 reasoning tokens at `reasoning_effort: low`, at 8,000 tokens/minute and 1,000 requests/day. No 1,000-token output cap was hit.
+- **Decision.**
+  1. **Concurrency limit (D16).** Provider profiles carry `max_concurrency`, which bounds requests in flight (each attempt, not the backoff sleeps). Groq is 1. `CF_PROVIDER_CONCURRENCY` overrides it per provider, for example `{"groq": 4}` on a paid tier.
+  2. **Bounded auto-resume (D18).** `WorkflowEngine.run_until_settled` resumes runs paused by a *rate limit*, waiting out the provider's hint. It stops after `max_resumes`, on a hint longer than `max_wait_s`, or on any other pause reason. Exhausted quotas and budget pauses are never auto-resumed. The CLI exposes it as `execute --auto-resume N`, and the live eval uses 3.
+  3. **Long outputs on the strong class (D17).** `legacy.manager` (`max_tokens` 2,000) and `campaign_reporter` declare `ModelClass.STRONG`. On Groq that is `openai/gpt-oss-120b`, which is also a separate per-model daily quota, so a run's load is spread over two quotas. An explicit `CF_MODEL` still wins for every agent (v1 behaviour).
+- **Consequences.**
+  - A Groq free-tier day supports a handful of live full campaigns, not dozens.
+  - The live acceptance runs (S1-02, S3-05) wait for the daily quota to refill, and are not marked passed until they do.
