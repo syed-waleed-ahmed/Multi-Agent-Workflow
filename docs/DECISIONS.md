@@ -1,0 +1,297 @@
+# Architecture Decision Records
+
+This file is an append-only log of the significant decisions behind Campaign Forge 2.0.
+
+- A decision is never edited away. To change one, add a new ADR that supersedes it.
+- **Status values:**
+  - **Accepted**: consistent with the master prompt; implementation may proceed.
+  - **Proposed**: deviates from the master prompt; awaiting the owner's approval.
+  - **Superseded**: replaced by a later ADR.
+
+| ADR | Title | Status | Date |
+| --- | --- | --- | --- |
+| 001 | Evolve v1.1 in place; preserve its public API and tests | Accepted | 2026-11-10 |
+| 002 | Deterministic workflow graph and a constrained planner, not autonomous loops | Accepted | 2026-11-10 |
+| 003 | One OpenAI-compatible provider implementation plus vendor profiles | Accepted | 2026-11-10 |
+| 004 | Agents communicate only through typed, versioned artifacts with claim-level provenance | Accepted | 2026-11-10 |
+| 005 | Engine-driven "plan, retrieve, synthesise" research instead of native tool calling | Accepted | 2026-11-10 |
+| 006 | Streamlit calls the core in-process; FastAPI is a separate optional service | Accepted | 2026-11-10 |
+| 007 | Light core; heavy dependencies behind optional extras | Accepted | 2026-11-10 |
+| 008 | The public demo stores no visitor data on the server | Accepted | 2026-11-10 |
+| 009 | Threads, not asyncio | Accepted | 2026-11-10 |
+| 010 | `FREE_ONLY` semantics, and no silent provider or model substitution | Accepted | 2026-11-10 |
+| 011 | Numbers are computed by code, never by the model | Accepted | 2026-11-10 |
+| 012 | Consolidate 37 requested agents into 28; build 11 in wave 1 | Accepted | 2026-11-10 |
+| 013 | Revised session order | Accepted | 2026-11-10 |
+| 014 | Keep v1 (Part I) and the target design (Part II) in one architecture document during migration | Accepted | 2026-11-10 |
+| 015 | Workflow definitions in JSON plus Python templates; no YAML dependency | Accepted | 2026-11-10 |
+| 016 | Python floor stays at 3.10 | Accepted | 2026-11-10 |
+| 017 | Live LLM calls are never part of mandatory CI | Accepted | 2026-11-10 |
+| 018 | UI studios are workflow templates over shared views | Accepted | 2026-11-10 |
+| 019 | Groq, not Gemini, is the default provider for the public live mode | Accepted | 2026-11-10 |
+| 020 | The v1 `LLMClient` facade is outside `FREE_ONLY` until the Session 2 migration | Superseded by 023 | 2026-11-10 |
+| 021 | Pin `openai<3` until a deliberate migration to the 3.x SDK | Accepted | 2026-11-10 |
+| 022 | Engine semantics left open by the design (ordering, accounting, review, pausing) | Accepted | 2026-11-10 |
+| 023 | The v1 `CampaignWorkflow` runs on the engine; `FREE_ONLY` now covers v1 | Accepted | 2026-11-10 |
+| 024 | CLI run storage and exit codes | Accepted | 2026-11-10 |
+| 025 | Keep `openai<3` after evaluation; widen only after a live smoke test | Accepted | 2026-11-10 |
+| 026 | Agent-library design: digests, contracts as code, critic capping, code-rendered report | Accepted | 2026-11-10 |
+| 027 | Platform character limits are code configuration (hard versus recommended) | Accepted | 2026-11-10 |
+
+---
+
+## ADR-001 Evolve v1.1 in place
+
+- **Context.** v1.1 is healthy: every gate passes, it has 82 tests, 94% branch coverage, and accurate documentation (see [PROJECT_AUDIT.md](PROJECT_AUDIT.md)). Rewriting it would throw away proven resilience code and the regression suite.
+- **Decision.** Keep the `src/campaign_forge` layout, the v1 public API, the CLI contract and the output format. Build the 2.0 engine alongside them, then turn `CampaignWorkflow` into a facade over the engine.
+- **Consequences.**
+  - The 82 existing tests must keep passing; any intentional change to a test is recorded in [SESSION_LOG.md](SESSION_LOG.md).
+  - Some compatibility code (adapters) is carried until the next major version.
+
+## ADR-002 Deterministic workflow graph and a constrained planner
+
+- **Context.** Open-ended multi-agent conversations are hard to test, can loop and burn tokens, and do not fit free-tier quotas.
+- **Decision.**
+  - Workflows are validated DAGs.
+  - The only loops are revision and repair cycles with hard caps.
+  - The planner (rule-based by default; LLM optional) can only select a registered template, toggle its declared optional steps and set declared parameters. Its proposal is validated against the registry, and the default template is used if the proposal is rejected.
+- **Consequences.**
+  - Runs are reproducible and testable offline.
+  - Planning is less "creative" than free-form autonomy. That is intentional.
+
+## ADR-003 One OpenAI-compatible provider plus vendor profiles
+
+- **Context.** All four target vendors (Groq, Gemini, Mistral, Cloudflare Workers AI) expose OpenAI-compatible chat endpoints (see [FREE_TIER_POLICY.md](FREE_TIER_POLICY.md)), and v1 already has a hardened OpenAI-compatible client.
+- **Decision.**
+  - Generalise `LLMClient` into an `OpenAICompatibleProvider`.
+  - Capture vendor differences in data-only `ProviderProfile`s: base URL, key variable, model aliases, JSON support level, rate-limit and quota message patterns, free-tier flag and data-use notice.
+  - Add a native SDK only if a required feature is missing from a vendor's compatibility endpoint, and record that as a new ADR.
+- **Consequences.**
+  - No new dependencies, and one well-tested transport.
+  - Vendor quirks (for example Gemini's `json_schema` limitations) are handled in profiles and covered by contract tests.
+
+## ADR-004 Typed artifacts with claim-level provenance
+
+- **Context.** v1 passes positional arguments between agents and does not label assumptions. 2.0 needs pluggable agents and honest research.
+- **Decision.**
+  - Agents exchange only `Artifact`s with a namespaced, versioned `kind` and a Pydantic payload.
+  - Claims carry a `basis` (user-provided, external source, stored memory, model assumption, derived).
+  - External claims must cite evidence IDs created by tools.
+- **Consequences.**
+  - Agents are replaceable without touching the orchestrator.
+  - A fabricated citation fails validation.
+  - Agents carry slightly more schema code.
+
+## ADR-005 Engine-driven research loop
+
+- **Context.** Native function calling differs across free-tier models and is hard to bound.
+- **Decision.**
+  1. The research agent emits a structured `ResearchPlan`.
+  2. The engine executes the allowlisted tools.
+  3. The agent synthesises from the resulting evidence.
+  4. The number of rounds is bounded (default: 1).
+- **Consequences.**
+  - Works on any model that can produce JSON.
+  - Easy to test with mocked tools.
+  - Fewer adaptive multi-hop searches.
+
+## ADR-006 Streamlit calls the core in-process
+
+- **Context.** Free Streamlit hosting runs one app process, and running a second server there is not supported.
+- **Decision.**
+  - The Streamlit app imports the library directly.
+  - FastAPI is a separate optional service for local or Docker use.
+  - Both use the same core, and neither contains business logic.
+- **Consequences.**
+  - The free public demo depends only on Streamlit Community Cloud.
+  - The API is demonstrable locally, but is not part of the hosted demo.
+
+## ADR-007 Dependency policy
+
+- **Decision.** The core keeps the current 5 runtime dependencies, plus an explicit `httpx`. Everything else lives behind extras: `[ui]`, `[api]`, `[db]`, `[research]`, `[otel]`, `[all]`. Each new dependency is justified in [TECH_STACK.md](TECH_STACK.md) before it is added.
+- **Consequences.** Library users get a small install. The UI and API live in extras.
+
+## ADR-008 No server-side visitor data in the public demo
+
+- **Context.**
+  - The Streamlit Cloud filesystem is not persistent.
+  - Some free LLM tiers allow providers to use prompts to improve their products.
+  - Storing visitor data creates privacy obligations.
+- **Decision.** Public demo state lives in the browser session only. Persistence (SQLite or Supabase) is for local and self-hosted deployments.
+- **Consequences.**
+  - The demo's "history" lasts only as long as the browser session.
+  - Brand Memory is demonstrated with session data or sample data.
+
+## ADR-009 Threads, not asyncio
+
+- **Decision.** Keep the synchronous transport with thread pools, both across campaigns (v1) and across independent steps (2.0).
+- **Rationale.**
+  - The work is I/O-bound.
+  - The `openai` sync client is thread-safe.
+  - Streamlit is synchronous.
+- **Consequences.** An async client stays a possible later optimisation, not a requirement.
+
+## ADR-010 `FREE_ONLY` and no silent substitution
+
+- **Decision.**
+  - `FREE_ONLY=true` by default. Only profiles and models marked free-eligible can run.
+  - A fallback provider is used only when explicitly listed, and the provider and model that actually ran are recorded on every artifact and shown in the UI.
+  - The documentation states clearly that Campaign Forge cannot see account billing, and advises using keys from accounts without billing attached.
+- **Consequences.** A quota error pauses a run instead of quietly moving it to another model.
+
+## ADR-011 Numbers are computed by code
+
+- **Decision.** The following are computed in Python, never by the model:
+  - budget allocations
+  - character-limit checks
+  - dates and calendars
+  - sample sizes
+  - performance ratios
+  - ICE scores
+  - SEO on-page measurements
+
+  Models supply qualitative judgments and explanations.
+- **Consequences.** Analytics outputs are verifiable and testable.
+
+## ADR-012 Agent catalog consolidation (Proposed)
+
+- **Context.** The master prompt lists 37 agent names, and several overlap: CopywriterAgent / AdCopyAgent / LandingPageAgent, ArtDirectorAgent / VisualPromptAgent, ContentQualityAgent / CreativeReviewAgent / Critic. The prompt also forbids empty or duplicated agents.
+- **Decision.**
+  - Build 28 agents, each with a distinct output contract. The full mapping is in [AGENT_CATALOG.md](AGENT_CATALOG.md).
+  - Wave 1 (Session 3, Milestone 1) has 11 agents.
+- **Deviation.** The master prompt's agent names are kept as aliases in the catalog, but not as separate classes. **Accepted by the owner on 2026-11-10** (instruction to continue with the plan as proposed).
+
+## ADR-013 Revised session order (Proposed)
+
+- **Context.** The master prompt orders Memory (S4) before Tools (S5), and puts Security (S9) and Evaluation (S8) near the end.
+- **Decision.**
+  - Run Tools and Research as Session 4, then Memory as Session 5. Evidence-backed research is the largest credibility gap, and wave-1 research agents need it.
+  - Build security primitives (untrusted-content framing, redaction, budgets) into Session 1, and eval coverage into every agent session. Sessions 8 and 9 deepen these; they do not introduce them.
+  - Deploy demo mode as early as Session 6, to surface hosting constraints before Session 10.
+- **Deviation.** Session numbering stays 0-10, but the content of Sessions 4 and 5 is swapped. **Accepted by the owner on 2026-11-10** (instruction to continue with the plan as proposed). See [ROADMAP.md](ROADMAP.md).
+
+## ADR-014 One architecture document during migration
+
+- **Decision.** [ARCHITECTURE.md](ARCHITECTURE.md) keeps the accurate v1 design (Part I) and adds the target design (Part II). Part I is folded into Part II as components land.
+- **Consequences.** The README's architecture link stays truthful at every point of the migration.
+
+## ADR-015 JSON workflow definitions
+
+- **Decision.**
+  - Built-in templates are Python.
+  - User-defined workflows are JSON, validated by Pydantic.
+  - No PyYAML in the core.
+- **Consequences.** Definitions are machine-edited by the Workflow Builder rather than hand-written YAML.
+
+## ADR-016 Python floor 3.10
+
+- **Decision.** Keep `requires-python >= 3.10`, which matches the current venv and CI. Add 3.13 to CI in Session 1.
+- **Context.** Streamlit Community Cloud supports every Python version that still receives security updates.
+
+## ADR-017 No live LLM calls in mandatory CI
+
+- **Decision.** CI uses `FakeProvider` and the offline eval only. Live evals are manual, or run as an opt-in scheduled workflow using repository secrets. Their results are recorded with date, provider and model, and never invented.
+
+## ADR-018 Studios are templates over shared views (Proposed)
+
+- **Context.** The master prompt lists 16 UI pages. Seven of them are "studios" that would duplicate the same new-run, progress and output components.
+- **Decision.**
+  - Keep all 16 navigation entries.
+  - Implement the studios as thin pages that pre-select workflow templates and render shared views.
+  - The real view set is about 9: Dashboard, New Run, Run Inspector, History, Brand Memory, Agents, Workflow Builder, Evaluation Lab, and Settings and Health.
+- **Deviation.** Same navigation as requested, less duplicated code. **Accepted by the owner on 2026-11-10** (instruction to continue with the plan as proposed).
+
+## ADR-019 Groq as the public live-mode default (Proposed)
+
+- **Context.** The master prompt names Gemini as the primary LLM. Google's own terms, checked on 2026-11-10, say two things:
+  - Free-tier data is used to improve Google products and may be reviewed by humans.
+  - Only paid services may be offered to users in the EEA, Switzerland and the UK.
+
+  A public demo serves anyone, from anywhere.
+- **Decision.**
+  - Groq is the default provider for the public live mode. It is already integrated, needs no card, and no regional restriction was found.
+  - Gemini, Mistral and Cloudflare Workers AI are first-class configurable providers, for local use and for visitors' own keys.
+- **Deviation.** **Accepted by the owner on 2026-11-10** (instruction to continue with the plan as proposed). Gemini remains fully supported; only the public default changes.
+
+## ADR-020 The v1 `LLMClient` facade is outside `FREE_ONLY` until Session 2
+
+- **Context.** `FREE_ONLY` is enforced by the 2.0 `ProviderRouter`. The v1 `LLMClient` still calls whatever `CF_BASE_URL` points at, which `.env.example` documents for OpenAI. Applying the policy there in Session 1 would break existing v1 setups mid-migration, before the engine that replaces them exists.
+- **Decision.** In Session 1 the facade keeps v1 behaviour exactly. In Session 2, `CampaignWorkflow` moves onto the engine and router, so `FREE_ONLY` applies to the v1 entry points too. A paid endpoint will then need `CF_FREE_ONLY=false`, and that change is announced in `CHANGELOG.md`.
+- **Consequences.** Until Session 2, the v1 CLI path can reach a paid endpoint if it is configured to. This is documented in `llm.py` and in [FREE_TIER_POLICY.md](FREE_TIER_POLICY.md).
+
+## ADR-021 Pin `openai<3` until a deliberate migration
+
+- **Context.** v1.1 declared `openai>=1.30` with no upper bound. Session 1 ran the suite in a fresh Python 3.11 environment, which resolved `openai` 3.49.0. That major version replaced its `httpx` transport with a new `httpx2` package, and test collection failed because the tests build SDK errors from `httpx` objects (defect D10). Any fresh install, including CI, picks up the same version. The package code still type-checks against 3.x, but it has never been tested against it.
+- **Decision.** Constrain the dependency to `openai>=1.30,<3` in `pyproject.toml` and `requirements.txt`. With the constraint, a fresh install resolves 2.54.0, and the full suite, mypy strict and the offline eval pass on Python 3.11 (and on 3.10 with 2.44.0).
+- **Consequences.** We stay on the 2.x line until a planned migration (task S2-17). That migration must cover the transport change, the error constructors and every provider contract test.
+
+## ADR-022 Engine semantics left open by the design
+
+- **Context.** The T5 and T6 design did not settle several details that matter for correctness and for honest reporting.
+- **Decision.**
+  - **`after` versus inputs.** `after` is ordering only: wait until the named steps finish, whatever their outcome. An input binding is a data dependency. A required input whose source did not succeed skips the step, with reason `dependency`. An optional input from such a source is left out.
+  - **Call accounting.** `llm_calls` counts every admitted call, including calls the provider refused. They still used up provider capacity.
+  - **Review.** If a reviewed step's score is still below the threshold after `max_revisions`, the output is accepted with a note and the score is recorded. A bounded loop must end, and quality is reported, not hidden.
+  - **Pausing.** Quota exhaustion, a rate limit too long to wait for, and an exhausted run budget all pause the run. The affected step returns to pending, every finished step is kept, and each resume gets a fresh budget.
+  - **Extra transitions.** `FAILED -> RUNNING` (retry) and `FAILED -> CANCELLED` (abandon) are allowed in addition to the T6 diagram.
+  - **Timeouts.** A step that times out is abandoned. Its cancel token is set, so its thread stops at its next model call.
+- **Consequences.** These rules are encoded in `campaign_forge.orchestration` and tested in `tests/test_engine.py`.
+
+## ADR-023 The v1 `CampaignWorkflow` runs on the engine (supersedes ADR-020)
+
+- **Decision.**
+  - The four v1 agents are wrapped as registered `legacy.*` agents, and `CampaignWorkflow` runs the `classic-campaign` template on the engine.
+  - An injected v1 client, such as the tests' `FakeLLM` or an `LLMClient`, is adapted with `LegacyClientProvider`.
+  - The v1 override keys (`manager`, `research`, ...) also match the `legacy.*` ids.
+- **Consequences.**
+  - The v1 signature, results and exception types are unchanged, and all 82 v1 test functions pass unmodified.
+  - **Behaviour change:** `FREE_ONLY` now applies to `campaign-forge run` and `batch`. A paid endpoint such as OpenAI needs `CF_FREE_ONLY=false`. This is recorded in `CHANGELOG.md`.
+  - Provider overrides in `CF_AGENT_OVERRIDES` now work for the v1 agents too.
+
+## ADR-024 CLI run storage and exit codes
+
+- **Decision.**
+  - `campaign-forge execute` stores runs as JSON files under `CF_RUNS_DIR` (default `outputs/runs`, which is git-ignored with `outputs/`), checkpointed after every step.
+  - Exit codes: `0` completed, `1` failed or cancelled, `2` configuration or validation error (as in v1), `3` needs action (paused, or waiting for approval).
+  - The v1 `run` and `batch` commands keep no run history.
+- **Consequences.** Paused or approval-gated runs survive the process and can be continued with `campaign-forge runs resume` or `runs approve`.
+
+## ADR-025 Keep `openai<3` after evaluation; widen only after a live smoke test
+
+- **Context.** Task S2-17 evaluated the 3.x SDK (3.49.0) in a fresh Python 3.11 environment:
+  - the full test suite and mypy strict pass;
+  - the real 3.x client constructs;
+  - genuine `httpx2` rate-limit, timeout and auth errors map correctly through `OpenAICompatibleProvider` (including the `retry-after-ms` header).
+
+  Nothing has been verified against a live API on 3.x, because live calls are not yet approved.
+- **Decision.**
+  - Keep `openai>=1.30,<3` for now.
+  - The new provider tests import the SDK's HTTP module through `tests/sdk_http.py`, so they run on both majors (verified on 3.49 with `httpx` uninstalled).
+  - Widen the pin to `<4` once `python scripts/provider_smoke.py --live` passes on 3.x. At that point, also switch the v1 test `tests/test_llm.py` to `tests/sdk_http.py`.
+- **Consequences.** Migrating is a two-line change backed by evidence, not a guess.
+
+## ADR-026 Agent-library design (wave 1)
+
+- **Context.** Wave 1 has to produce trustworthy, checkable output on small free-tier models, within tight tokens-per-minute limits.
+- **Decision.**
+  - **Contracts.** Every agent returns a Pydantic contract whose validators hold the content rules (counts, limits, single-line prompts, calendar bounds). A violation is fed back through the bounded repair loop.
+  - **Digests.** Upstream artifacts reach downstream prompts as compact digests, not full JSON.
+  - **The critic** applies the deterministic checks first and caps its score at 0.40 on any critical failure. The model scores a kind-specific rubric 1-5, and code maps the scores to 0-1.
+  - **The reporter** asks the model only for a six-section Markdown narrative, validated with one repair. Code appends the exact deliverables, the model assumptions, and what was not produced. The model never re-types the deliverables.
+  - **`full-campaign`** reviews the core copy and the ads (threshold 0.7, one revision). Ads, social, email and visuals are optional steps, so one of them failing does not sink the campaign. The report lists what is missing.
+  - **The default planner template** is now `full-campaign`. The v1 API keeps `classic-campaign`.
+  - **CLI demo.** With `CF_PROVIDER=fake`, the CLI answers every agent with the deterministic offline responder and labels the output SIMULATED.
+- **Consequences.**
+  - Output is verifiable and cheap: an offline `full-campaign` run is 12 calls.
+  - Live quality must still be measured (S3-05).
+
+## ADR-027 Platform character limits are code configuration
+
+- **Decision.** `campaign_forge.agents.schemas.PLATFORM_LIMITS` holds per-platform limits, each marked "hard" or "recommended":
+  - hard: Google Search headline 30 and description 90; X post 280;
+  - recommended: Meta, LinkedIn and TikTok guidance.
+
+  Hard limits are enforced by the contract. Recommended limits only produce warnings on the artifact.
+- **Consequences.**
+  - Platforms change their rules, so the values are documented as commonly published limits, to verify before publishing.
+  - Updating one is a one-line change, covered by tests.
