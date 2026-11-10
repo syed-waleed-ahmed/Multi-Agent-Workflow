@@ -20,6 +20,7 @@ from ..agents.library import register_library_agents
 from ..agents.schemas import BRIEF_KIND
 from ..core.budget import BudgetLimits
 from ..core.registry import AgentRegistry
+from ..domain.sources import SOURCES_KIND
 from ..exceptions import ConfigurationError
 from .definition import Condition, ReviewSpec, StepDefinition, WorkflowDefinition
 
@@ -86,13 +87,19 @@ def classic_campaign() -> WorkflowDefinition:
 # Wave-1 agent library templates
 # --------------------------------------------------------------------------- #
 _BRIEF = "input:brief"
+_SOURCES = "input:sources"
+_OPTIONAL_SOURCES = {"sources": SOURCES_KIND}
 _REVIEW = ReviewSpec(critic="critic", threshold=0.7, max_revisions=1)
 
 
 def _foundation() -> tuple[StepDefinition, ...]:
     """Audience research, positioning, reviewed core copy (shared by focused templates)."""
     return (
-        StepDefinition(id="audience", agent="audience_research", inputs={"brief": _BRIEF}),
+        StepDefinition(
+            id="audience",
+            agent="audience_research",
+            inputs={"brief": _BRIEF, "sources": _SOURCES},
+        ),
         StepDefinition(
             id="positioning",
             agent="positioning",
@@ -124,9 +131,16 @@ def full_campaign() -> WorkflowDefinition:
             "concepts, and a final report with every deliverable."
         ),
         inputs={"brief": BRIEF_KIND},
+        optional_inputs=_OPTIONAL_SOURCES,
         steps=(
-            StepDefinition(id="audience", agent="audience_research", inputs={"brief": _BRIEF}),
-            StepDefinition(id="market", agent="market_research", inputs={"brief": _BRIEF}),
+            StepDefinition(
+                id="audience",
+                agent="audience_research",
+                inputs={"brief": _BRIEF, "sources": _SOURCES},
+            ),
+            StepDefinition(
+                id="market", agent="market_research", inputs={"brief": _BRIEF, "sources": _SOURCES}
+            ),
             StepDefinition(
                 id="positioning",
                 agent="positioning",
@@ -191,7 +205,7 @@ def full_campaign() -> WorkflowDefinition:
         },
         # About 10 agent calls, plus up to 4 critic calls and 2 revisions. Two parallel steps
         # keep bursts within a free-tier tokens-per-minute quota.
-        limits=BudgetLimits(max_llm_calls=40, max_total_tokens=150_000, max_wall_seconds=2400),
+        limits=BudgetLimits(max_llm_calls=40, max_total_tokens=150_000, max_wall_seconds=3600),
         max_parallel=2,
     )
 
@@ -205,9 +219,10 @@ def _focused(
         version="1.0.0",
         description=description,
         inputs={"brief": BRIEF_KIND},
+        optional_inputs=_OPTIONAL_SOURCES,
         steps=(*_foundation(), step),
         outputs={output: f"step:{step.id}", "copy": "step:copy"},
-        limits=BudgetLimits(max_llm_calls=20, max_total_tokens=60_000, max_wall_seconds=1200),
+        limits=BudgetLimits(max_llm_calls=20, max_total_tokens=60_000, max_wall_seconds=1800),
         max_parallel=1,
     )
 
@@ -257,6 +272,38 @@ def email_sequence() -> WorkflowDefinition:
     )
 
 
+def competitor_report() -> WorkflowDefinition:
+    """Evidence-backed competitor and market research, fact-checked claim by claim."""
+    research = {"brief": _BRIEF, "sources": _SOURCES}
+    return WorkflowDefinition(
+        id="competitor-report",
+        name="Competitor report",
+        version="1.0.0",
+        description=(
+            "Competitor profiles (named competitors only) and market research from your sources "
+            "and search tools, with every cited claim fact-checked against its evidence."
+        ),
+        inputs={"brief": BRIEF_KIND},
+        optional_inputs=_OPTIONAL_SOURCES,
+        steps=(
+            StepDefinition(id="competitors", agent="competitor_research", inputs=research),
+            StepDefinition(id="market", agent="market_research", inputs=research),
+            StepDefinition(
+                id="fact_check",
+                agent="fact_checker",
+                inputs={"competitors": "step:competitors", "market": "step:market"},
+            ),
+        ),
+        outputs={
+            "competitors": "step:competitors",
+            "market": "step:market",
+            "fact_check": "step:fact_check",
+        },
+        limits=BudgetLimits(max_llm_calls=20, max_total_tokens=60_000, max_wall_seconds=1800),
+        max_parallel=2,
+    )
+
+
 @dataclass(frozen=True)
 class TemplateInfo:
     """A catalog entry: what the planner and the UI know about a template."""
@@ -283,6 +330,7 @@ BUILTIN_TEMPLATES: Mapping[str, TemplateInfo] = {
         _info(ad_pack),
         _info(social_calendar),
         _info(email_sequence),
+        _info(competitor_report),
     )
 }
 DEFAULT_TEMPLATE = "full-campaign"

@@ -8,6 +8,7 @@ models, and the number of attempts is hard-capped.
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 from pydantic import ValidationError
 
@@ -34,6 +35,7 @@ def run_structured(
     *,
     max_repairs: int = 1,
     on_repair: Callable[[], None] | None = None,
+    validation_context: dict[str, Any] | None = None,
 ) -> StructuredResult[ModelT]:
     """Call ``call`` until its output validates against ``schema`` or repairs run out.
 
@@ -43,6 +45,8 @@ def run_structured(
         schema: The Pydantic model the output must validate against.
         max_repairs: Corrective re-asks allowed after the first attempt (0-3).
         on_repair: Invoked before each re-ask (used to charge the run budget).
+        validation_context: Passed to Pydantic validators (e.g. the evidence ids a
+            response may cite).
 
     Raises:
         OutputParsingError: if no attempt produced valid output.
@@ -60,7 +64,9 @@ def run_structured(
         response = call(current)
         responses.append(response)
         try:
-            value = schema.model_validate(parse_json_object(response.text))
+            value = schema.model_validate(
+                parse_json_object(response.text), context=validation_context
+            )
         except (ValueError, ValidationError) as exc:
             last_error = exc
             current = current.model_copy(

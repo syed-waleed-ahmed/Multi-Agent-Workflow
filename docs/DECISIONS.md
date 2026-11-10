@@ -37,6 +37,9 @@ This file is an append-only log of the significant decisions behind Campaign For
 | 025 | Keep `openai<3` after evaluation; widen only after a live smoke test | Accepted | 2026-11-10 |
 | 026 | Agent-library design: digests, contracts as code, critic capping, code-rendered report | Accepted | 2026-11-10 |
 | 027 | Platform character limits are code configuration (hard versus recommended) | Accepted | 2026-11-10 |
+| 028 | Groq default model: qwen/qwen3.8-27b (llama-3.1-8b-instant retired) | Accepted | 2026-11-10 |
+| 029 | Research tools: search-only, citations bound to retrieved evidence | Accepted | 2026-11-10 |
+| 030 | The free-tier operating envelope: output caps, truncation recovery, generous step timeouts | Accepted | 2026-11-10 |
 
 ---
 
@@ -295,3 +298,44 @@ This file is an append-only log of the significant decisions behind Campaign For
 - **Consequences.**
   - Platforms change their rules, so the values are documented as commonly published limits, to verify before publishing.
   - Updating one is a one-line change, covered by tests.
+
+## ADR-028 Groq default model: `qwen/qwen3.8-27b`
+
+- **Context.** The first live provider check (2026-11-10) found that Groq has retired `llama-3.1-8b-instant`, the default since v1. Every live run failed with HTTP 404 (defect D11). Offline tests could not catch this.
+- **Evidence.** A live probe of the remaining text models showed that all of them support JSON mode, report usage and return `finish_reason: stop`. The response headers show the free-tier limits are 8,000 tokens per minute and 1,000 requests per day per model. The `gpt-oss` models return hidden reasoning that counts as completion tokens; `qwen/qwen3.8-27b` does not and used about a quarter of the tokens for the same answer.
+- **Decision.**
+  - `DEFAULT_MODEL` and the Groq profile default are now `qwen/qwen3.8-27b`.
+  - Groq aliases: `small` and `standard` map to `qwen/qwen3.8-27b`; `strong` maps to `openai/gpt-oss-120b`.
+  - Provider profiles can attach per-model request parameters. `gpt-oss` models get `reasoning_effort: low`.
+  - A 404 `model_not_found` error now tells the user how to list the available models.
+- **Consequences.** `scripts/provider_smoke.py --live --models` is the routine check whenever a provider changes its catalog.
+
+## ADR-029 Research tools: search-only, citations bound to retrieved evidence
+
+- **Decision.**
+  - **No model-chosen URLs.** Agents may only send model-proposed search *queries* to allowlisted search tools: Wikipedia (keyless, the default) and Tavily (when `TAVILY_API_KEY` is set). A model can never make the system fetch a URL.
+  - **User URLs only.** URL fetching happens only for URLs the user supplies with `--sources`, before a run, through `SafeFetcher`. It re-checks every redirect for SSRF, honours robots.txt (RFC 9309 semantics), and caps size, time and content type.
+  - **Citations are validated.** Citations are evidence ids. The output contract validates every cited id against the evidence actually retrieved in this run, so an invented citation is a repair error. Artifacts embed the evidence they cite, so they can be verified on their own; the `citations_verified` check does this.
+  - **Named competitors only.** Competitor research may name only competitors that appear in the brief, the user's sources or the evidence.
+  - **Fact checking.** The fact checker judges each externally sourced claim against its cited excerpts. The model returns only per-index verdicts, and code maps them back to the claims.
+  - **Fallback.** With no evidence available, research agents work in labeled assumptions mode, where external claims are impossible.
+- **Consequences.**
+  - Research costs one extra planning call per research agent when tools are configured.
+  - The public demo gets research without exposing a URL-fetching surface to visitors' prompts.
+  - DNS rebinding between the URL check and the connection is a documented residual risk for user-supplied URLs (SECURITY.md).
+
+## ADR-030 The free-tier operating envelope
+
+- **Context.** The first live evals on Groq's free tier (2026-11-10) failed completely: v1 completed 0 of 10 briefs and `full-campaign` 0 of 2. The causes were measured, not guessed:
+  - **Output-token cap.** `qwen/qwen3.8-27b` allows 1,000 output tokens per minute, and a request's `max_tokens` counts against it up front. A request above 1,000 is rejected outright as "Request too large". Throughput is therefore roughly one 800-token call per minute.
+  - **Truncation.** Responses truncated at 800 tokens failed whole steps.
+  - **Step timeouts.** Each 429 meant a wait of about 45 s, which pushed steps past their 120 s limit.
+- **Decision.**
+  1. **Clamp to the cap.** Provider profiles hold per-model `max_output_tokens` caps (Groq `qwen/qwen3.8`: 1,000), and requests are clamped to them.
+  2. **Treat "Request too large" as a permanent error.** It is a `ProviderBadRequestError` that fails fast with advice, not a rate limit that retries and then pauses.
+  3. **Recover from truncation once.** A truncated answer gets one concise re-ask. The brevity instruction is added to the last user message, so v1 clients still see two messages. The re-ask counts as a repair and is budgeted.
+  4. **Generous step timeouts.** The default step timeout is now 900 s, and template wall-clock budgets were raised. Waiting out a rate limit is normal, not a hang.
+  5. **Shorter long-output prompts.** The social calendar, email sequence and report narrative prompts now ask for less.
+- **Consequences.**
+  - A free-tier full campaign is slow (roughly 15 calls at about one per minute) but bounded.
+  - Higher-throughput tiers, or other providers, simply skip the waits.

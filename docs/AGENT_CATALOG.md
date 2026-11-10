@@ -63,6 +63,7 @@ Decisions made while building wave 1 are recorded in ADR-026 and ADR-027:
   (six validated sections, written as Markdown rather than JSON). Code appends
   the exact deliverables, every model assumption, and a list of what the run did
   not produce.
+- **Session 4.** `competitor_research` and `fact_checker` are implemented. The `competitor-report` template is competitor research and market research, then the fact checker. The research agents gained evidence mode (ADR-029).
 - **Ads** are written for at most 6 channels, ad-capable platforms first. Code
   chooses the channels, so the prompt and the 12-variant contract agree.
 - **Templates.** The focused templates (`ad-pack`, `social-calendar`,

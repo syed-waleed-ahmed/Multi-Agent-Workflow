@@ -16,16 +16,23 @@ from __future__ import annotations
 import threading
 import uuid
 from dataclasses import dataclass, field, replace
-from typing import TypeVar
+from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
 from ..config import AgentRoute
+from ..domain.provenance import Evidence
 from ..domain.scope import Scope
-from ..exceptions import AgentError, RunCancelledError
-from ..providers.base import CompletionRequest, CompletionResponse, StructuredResult
+from ..exceptions import AgentError, RunCancelledError, ToolError, TruncatedResponseError
+from ..providers.base import (
+    ChatMessage,
+    CompletionRequest,
+    CompletionResponse,
+    StructuredResult,
+)
 from ..providers.router import ProviderRouter
 from ..providers.structured import run_structured
+from ..tools.base import EvidenceStore, ToolBox
 from .agent import AgentSpec
 from .budget import Budget, BudgetLimits
 from .events import Event, EventBus, EventType
@@ -78,6 +85,21 @@ class CallCounter:
             self._calls += 1
 
 
+def _concise(request: CompletionRequest, max_tokens: int) -> CompletionRequest:
+    """The same request with a brevity instruction added to its last user message."""
+    words = max(50, int(max_tokens * 0.55))
+    note = (
+        "\n\nIMPORTANT: a previous answer to this request was cut off at the length limit. "
+        f"Answer again completely, in at most {words} words, keeping any required format."
+    )
+    messages = list(request.messages)
+    for index in range(len(messages) - 1, -1, -1):
+        if messages[index].role == "user":
+            messages[index] = ChatMessage(role="user", content=messages[index].content + note)
+            break
+    return request.model_copy(update={"messages": tuple(messages)})
+
+
 @dataclass
 class RunContext:
     """Per-run services handed to every agent."""
@@ -91,6 +113,8 @@ class RunContext:
     overrides: dict[str, AgentRoute] = field(default_factory=dict)
     step_id: str | None = None
     call_counter: CallCounter | None = None
+    tools: ToolBox | None = None
+    evidence: EvidenceStore = field(default_factory=EvidenceStore)
 
     def for_step(self, step_id: str) -> RunContext:
         """A view of this context for one step: same budget and events, own cancel token."""
@@ -135,13 +159,36 @@ class RunContext:
         )
         self.budget.reserve_call(max_tokens)
         metadata = {**request.metadata, "agent": spec.id, "run_id": self.run_id}
-        response = self.router.complete(
-            spec.id,
-            request.model_copy(update={"max_tokens": max_tokens, "metadata": metadata}),
-            model_class=spec.model_class,
-            provider_preference=spec.provider,
-            override=override,
-        )
+        routed = request.model_copy(update={"max_tokens": max_tokens, "metadata": metadata})
+        try:
+            response = self.router.complete(
+                spec.id,
+                routed,
+                model_class=spec.model_class,
+                provider_preference=spec.provider,
+                override=override,
+            )
+        except TruncatedResponseError:
+            # One bounded recovery: ask again for a shorter, complete answer.
+            self.budget.charge_repair()
+            if self.call_counter is not None:
+                self.call_counter.charge(spec)
+            self.budget.reserve_call(max_tokens)
+            self.events.publish(
+                Event(
+                    type=EventType.WARNING,
+                    run_id=self.run_id,
+                    step_id=step_id,
+                    message=f"{spec.id}: answer was truncated; asking once for a concise version",
+                )
+            )
+            response = self.router.complete(
+                spec.id,
+                _concise(routed, max_tokens),
+                model_class=spec.model_class,
+                provider_preference=spec.provider,
+                override=override,
+            )
         self.budget.record_usage(response.usage)
         self.events.publish(
             Event(
@@ -187,6 +234,7 @@ class RunContext:
         schema: type[ModelT],
         *,
         step_id: str | None = None,
+        validation_context: dict[str, Any] | None = None,
     ) -> StructuredResult[ModelT]:
         """Structured output with repairs, each re-ask charged to the run budget."""
         step_id = step_id or self.step_id
@@ -196,4 +244,49 @@ class RunContext:
             schema,
             max_repairs=spec.limits.max_repairs,
             on_repair=self.budget.charge_repair,
+            validation_context=validation_context,
         )
+
+    # ------------------------------------------------------------------ #
+    # Research tools
+    # ------------------------------------------------------------------ #
+    def search_tools(self, spec: AgentSpec) -> list[str]:
+        """Ids of the configured search tools this agent may use."""
+        if self.tools is None:
+            return []
+        return [tool.spec.id for tool in self.tools.allowed(spec.allowed_tools)]
+
+    def search(self, spec: AgentSpec, query: str, *, limit: int = 3) -> list[Evidence]:
+        """Run ``query`` on every search tool the agent may use. Returns the new evidence.
+
+        A failing tool is recorded as a warning event and skipped: research degrades
+        to fewer sources, never to a crashed step. Budget exhaustion propagates.
+        """
+        self.cancel_token.raise_if_cancelled()
+        found: list[Evidence] = []
+        for tool in self.tools.allowed(spec.allowed_tools) if self.tools else []:
+            self.budget.charge_tool_call()
+            try:
+                results = tool.search(query, limit=limit)
+            except ToolError as exc:
+                self.events.publish(
+                    Event(
+                        type=EventType.WARNING,
+                        run_id=self.run_id,
+                        step_id=self.step_id,
+                        message=f"{spec.id}: {tool.spec.id} search failed: {exc}",
+                    )
+                )
+                continue
+            self.evidence.add(results)
+            found.extend(results)
+            self.events.publish(
+                Event(
+                    type=EventType.TOOL_CALL_FINISHED,
+                    run_id=self.run_id,
+                    step_id=self.step_id,
+                    message=f"{spec.id}: {tool.spec.id} returned {len(results)} result(s)",
+                    data={"agent": spec.id, "tool": tool.spec.id, "results": len(results)},
+                )
+            )
+        return found

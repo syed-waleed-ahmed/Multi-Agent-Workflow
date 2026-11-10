@@ -147,13 +147,19 @@ class OpenAICompatibleProvider(BaseProvider):
         Raises:
             ProviderError: (an ``LLMError``) on failure, already normalised.
         """
+        model = request.model or self._model
+        max_tokens = request.max_tokens or self._max_tokens
+        cap = self._profile.output_cap_for(model)
+        if cap is not None and max_tokens > cap:
+            self._log.debug("Clamping max_tokens %d to %s's cap of %d", max_tokens, model, cap)
+            max_tokens = cap
         kwargs: dict[str, Any] = {
-            "model": request.model or self._model,
+            "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in request.messages],
             "temperature": (
                 request.temperature if request.temperature is not None else self._temperature
             ),
-            "max_tokens": request.max_tokens or self._max_tokens,
+            "max_tokens": max_tokens,
         }
         if request.json_mode and self._profile.json_mode:
             kwargs["response_format"] = {"type": "json_object"}
@@ -280,6 +286,13 @@ class OpenAICompatibleProvider(BaseProvider):
         message = redact(str(exc), self._secrets)
         name = self.name
         prefix = f"{self._profile.display_name}: "
+        lowered = message.lower()
+        if "request too large" in lowered or "exceed the enforced limit" in lowered:
+            return ProviderBadRequestError(
+                f"{prefix}request too large for this model's limits. {message} Lower this "
+                "agent's max_tokens (CF_AGENT_OVERRIDES) or the profile's max_output_tokens.",
+                provider=name,
+            )
         if isinstance(exc, RateLimitError) or (
             isinstance(exc, APIStatusError) and exc.status_code == 429
         ):

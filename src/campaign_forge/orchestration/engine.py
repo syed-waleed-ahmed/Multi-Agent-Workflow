@@ -62,6 +62,7 @@ from ..exceptions import (
 )
 from ..logging_config import get_logger
 from ..providers.router import ProviderRouter
+from ..tools.base import ToolBox
 from .definition import StepDefinition, WorkflowDefinition, parse_ref, validate_definition
 from .state import RunRecord, RunStatus, SkipReason, StepState, StepStatus
 from .store import InMemoryRunStore, RunStore
@@ -154,8 +155,10 @@ class WorkflowEngine:
         store: RunStore | None = None,
         events: EventBus | None = None,
         clock: Callable[[], float] = time.monotonic,
+        tools: ToolBox | None = None,
     ) -> None:
         self._registry = registry
+        self._tools = tools
         self._router = router
         self._store: RunStore = store or InMemoryRunStore()
         self._events = events or EventBus()
@@ -337,6 +340,7 @@ class WorkflowEngine:
             budget=budget,
             events=bus,
             overrides=dict(record.overrides),
+            tools=self._tools,
         )
         base_usage, base_calls = record.usage, record.llm_calls
 
@@ -606,13 +610,14 @@ class WorkflowEngine:
     ) -> dict[str, Artifact]:
         problems: list[str] = []
         missing = sorted(set(definition.inputs) - set(inputs))
-        extra = sorted(set(inputs) - set(definition.inputs))
+        extra = sorted(set(inputs) - set(definition.inputs) - set(definition.optional_inputs))
         if missing:
             problems.append(f"missing workflow input(s): {', '.join(missing)}")
         if extra:
             problems.append(f"unknown workflow input(s): {', '.join(extra)}")
         artifacts: dict[str, Artifact] = {}
-        for name, kind in definition.inputs.items():
+        declared = {**definition.optional_inputs, **definition.inputs}
+        for name, kind in declared.items():
             value = inputs.get(name)
             if isinstance(value, Artifact):
                 if value.kind != kind:

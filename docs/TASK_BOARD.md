@@ -95,6 +95,21 @@ Granular tasks for each session.
 - [x] S3-04 Eval harness `--workflow` mode (per-output deterministic checks, call and token metrics), with a CI step for `full-campaign`
 - [ ] S3-05 Live `full-campaign` run on the Groq free tier; record the measured usage; tag `2.0.0b1`. **Blocked: needs approval to spend quota and to commit.**
 
-## Sessions 4-10
+## Session 4 - Tools and evidence-backed research
+
+- [x] S4-01 `security/url_safety.py`: http(s) only, no embedded credentials, ports 80/443, refuse private, loopback, link-local, multicast, reserved and metadata addresses (IPv4 and IPv6, including IPv4-mapped)
+- [x] S4-02 `tools/`: tool protocol, per-agent allowlist (`AgentSpec.allowed_tools`), tool-call budget, run-level evidence store
+- [x] S4-03 Safe URL fetcher: re-check every redirect, `robots.txt` (RFC 9309 semantics), size, time and content-type caps, HTML to text with the stdlib
+- [x] S4-04 User-supplied sources (text, Markdown, CSV, JSON) loaded as evidence, with size caps
+- [x] S4-05 Wikipedia adapter (policy-compliant User-Agent, no key) and optional Tavily adapter (`TAVILY_API_KEY`)
+- [x] S4-06 Citations: artifacts carry the evidence they cite; the contract rejects unknown evidence ids, so invented citations trigger repair; the checks flag fabricated citations
+- [x] S4-07 Evidence mode for `audience_research` and `market_research` (plan, retrieve, synthesise), falling back to labeled assumptions mode
+- [x] S4-08 New agents `competitor_research` (only competitors named in the brief or the evidence) and `fact_checker`
+- [x] S4-09 Optional workflow inputs (`sources`); `competitor-report` template; research templates accept user sources
+- [x] S4-10 CLI `--sources`; the reporter renders a code-built Sources section
+- [x] S4-11 Tests: SSRF, robots, caps, fabricated citations, evidence and assumptions modes, new agents; offline responder; evals
+- [ ] S4-12 Docs: ARCHITECTURE status, SECURITY (T2-T4), AGENT_CATALOG, FREE_TIER_POLICY, ADRs, CHANGELOG, BUILD_STATUS, SESSION_LOG
+
+## Sessions 5-10
 
 Scope and acceptance criteria are in [ROADMAP.md](ROADMAP.md). Granular tasks are written at the start of each session.

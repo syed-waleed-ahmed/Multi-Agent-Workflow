@@ -31,6 +31,7 @@ class EventType(str, Enum):
     STEP_STARTED = "step_started"
     STEP_FINISHED = "step_finished"
     LLM_CALL_FINISHED = "llm_call_finished"
+    TOOL_CALL_FINISHED = "tool_call_finished"
     PROVIDER_FALLBACK = "provider_fallback"
     APPROVAL_REQUESTED = "approval_requested"
     WARNING = "warning"

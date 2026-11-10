@@ -17,10 +17,18 @@ from __future__ import annotations
 import re
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    StringConstraints,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from ..domain.provenance import Basis, Claim
 from ..domain.review import REVIEW_KIND, ReviewResult
+from ..domain.sources import SOURCES_KIND, SourceBundle
 from ..models import MAX_CHANNELS, CampaignBrief
 
 BRIEF_KIND = "input.brief@1"
@@ -34,6 +42,8 @@ SOCIAL_KIND = "content.social@1"
 EMAIL_KIND = "content.email_sequence@1"
 VISUALS_KIND = "creative.visual_concepts@1"
 REPORT_KIND = "report.campaign_brief@1"
+COMPETITORS_KIND = "research.competitors@1"
+FACT_CHECK_KIND = "quality.fact_check@1"
 
 Short = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=800)]
@@ -55,14 +65,50 @@ def _cell(text: str) -> str:
 # --------------------------------------------------------------------------- #
 # Research
 # --------------------------------------------------------------------------- #
+def _context(info: ValidationInfo) -> dict[str, Any]:
+    return info.context if isinstance(info.context, dict) else {}
+
+
 class Finding(BaseModel):
-    """One research statement and its basis. Without research tools, never external."""
+    """One research statement, its basis, and the evidence it cites.
+
+    An ``external_source`` finding must cite evidence ids. When the agent passes
+    the ids it actually retrieved as validation context, every cited id must be
+    one of them. An invented citation is therefore a validation error, which the
+    repair loop sends back to the model. With no evidence in context (assumptions
+    mode), external findings are impossible.
+    """
 
     statement: Text
-    basis: Literal["user_provided", "model_assumption"] = "model_assumption"
+    basis: Literal["user_provided", "model_assumption", "external_source"] = "model_assumption"
+    evidence_ids: list[str] = Field(default_factory=list, max_length=5)
+
+    @model_validator(mode="after")
+    def _citations(self, info: ValidationInfo) -> Finding:
+        if self.basis == "external_source" and not self.evidence_ids:
+            raise ValueError("an external_source finding must cite evidence_ids")
+        known = _context(info).get("evidence_ids")
+        if known is not None:
+            unknown = [e for e in self.evidence_ids if e not in known]
+            if unknown:
+                raise ValueError(
+                    f"unknown evidence ids {unknown}; cite only the [ev-...] ids listed in the "
+                    "evidence (or use basis model_assumption with no ids)"
+                )
+        return self
 
     def to_claim(self) -> Claim:
-        return Claim(statement=self.statement, basis=Basis(self.basis))
+        return Claim(
+            statement=self.statement, basis=Basis(self.basis), evidence_ids=tuple(self.evidence_ids)
+        )
+
+
+class ResearchPlan(BaseModel):
+    """The search queries a research agent proposes (executed by code, not the model)."""
+
+    queries: list[
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=120)]
+    ] = Field(min_length=1, max_length=3)
 
 
 class Persona(BaseModel):
@@ -107,6 +153,132 @@ class MarketResearch(BaseModel):
         lines.extend(f"- Trend ({t.basis}): {_clip(t.statement, 140)}" for t in self.trends[:4])
         lines.extend(f"- Angle: {_clip(a, 140)}" for a in self.positioning_angles)
         return "\n".join(lines)
+
+
+class CompetitorProfile(BaseModel):
+    name: Short
+    summary: Text
+    positioning: Finding
+    strengths: list[Finding] = Field(default_factory=list, max_length=4)
+    weaknesses: list[Finding] = Field(default_factory=list, max_length=4)
+
+
+class CompetitorResearch(BaseModel):
+    """Competitor profiles; only competitors named in the reference material are allowed."""
+
+    competitors: list[CompetitorProfile] = Field(default_factory=list, max_length=5)
+    opportunities: list[Finding] = Field(min_length=1, max_length=5)
+
+    @model_validator(mode="after")
+    def _named_competitors_only(self, info: ValidationInfo) -> CompetitorResearch:
+        reference = _context(info).get("reference_text")
+        if reference is None:
+            return self
+        invented = [c.name for c in self.competitors if c.name.casefold() not in reference]
+        if invented:
+            raise ValueError(
+                f"competitors {invented} are not named in the brief, the user's sources or the "
+                "evidence; remove them (an empty competitors list is fine)"
+            )
+        return self
+
+    def claims(self) -> tuple[Claim, ...]:
+        findings = [
+            f for c in self.competitors for f in (c.positioning, *c.strengths, *c.weaknesses)
+        ]
+        return tuple(f.to_claim() for f in (*findings, *self.opportunities))
+
+    def digest(self) -> str:
+        if not self.competitors:
+            lines = ["No named competitors were found in the brief, sources or evidence."]
+        else:
+            lines = [f"- {c.name}: {_clip(c.positioning.statement, 140)}" for c in self.competitors]
+        lines.extend(f"- Opportunity: {_clip(o.statement, 140)}" for o in self.opportunities)
+        return "\n".join(lines)
+
+    def to_markdown(self) -> str:
+        if not self.competitors:
+            table = "_No named competitors were found in the brief, sources or evidence._"
+        else:
+            rows = "\n".join(
+                f"| {_cell(c.name)} | {_cell(c.positioning.statement)} | "
+                f"{_cell('; '.join(s.statement for s in c.strengths)) or '-'} | "
+                f"{_cell('; '.join(w.statement for w in c.weaknesses)) or '-'} |"
+                for c in self.competitors
+            )
+            table = (
+                "| Competitor | Positioning | Strengths | Weaknesses |\n"
+                "| --- | --- | --- | --- |\n" + rows
+            )
+        opportunities = "\n".join(f"- {o.statement}" for o in self.opportunities)
+        return f"{table}\n\n**Opportunities:**\n{opportunities}"
+
+
+class ClaimVerdict(BaseModel):
+    """The fact checker model's verdict on one numbered claim."""
+
+    index: int = Field(ge=0)
+    verdict: Literal["supported", "partially_supported", "unsupported"]
+    note: str = Field(default="", max_length=400)
+
+
+class FactCheckVerdicts(BaseModel):
+    verdicts: list[ClaimVerdict] = Field(default_factory=list, max_length=40)
+
+    @model_validator(mode="after")
+    def _indices(self, info: ValidationInfo) -> FactCheckVerdicts:
+        count = _context(info).get("claim_count")
+        if count is None:
+            return self
+        indices = [v.index for v in self.verdicts]
+        bad = sorted({i for i in indices if i >= count})
+        duplicate = sorted({i for i in indices if indices.count(i) > 1})
+        if bad or duplicate:
+            raise ValueError(
+                f"verdict indices must be 0-{count - 1}, each once; "
+                f"out of range: {bad}, repeated: {duplicate}"
+            )
+        return self
+
+
+class CheckedClaim(BaseModel):
+    statement: Text
+    evidence_ids: list[str] = Field(default_factory=list)
+    verdict: Literal["supported", "partially_supported", "unsupported", "not_checked"]
+    note: str = ""
+
+
+class FactCheck(BaseModel):
+    """Claim-by-claim verification against cited evidence. The counts are computed by code."""
+
+    claims: list[CheckedClaim] = Field(default_factory=list, max_length=40)
+    supported: int = 0
+    partially_supported: int = 0
+    unsupported: int = 0
+    not_checked: int = 0
+
+    @model_validator(mode="after")
+    def _count(self) -> FactCheck:
+        for name in ("supported", "partially_supported", "unsupported", "not_checked"):
+            setattr(self, name, sum(1 for c in self.claims if c.verdict == name))
+        return self
+
+    def digest(self) -> str:
+        return (
+            f"{len(self.claims)} claim(s): {self.supported} supported, "
+            f"{self.partially_supported} partly, {self.unsupported} unsupported, "
+            f"{self.not_checked} not checked"
+        )
+
+    def to_markdown(self) -> str:
+        if not self.claims:
+            return "_No externally sourced claims to check._"
+        rows = "\n".join(
+            f"| {_cell(c.statement)} | {c.verdict.replace('_', ' ')} | "
+            f"{_cell(', '.join(c.evidence_ids)) or '-'} | {_cell(c.note) or '-'} |"
+            for c in self.claims
+        )
+        return "| Claim | Verdict | Evidence | Note |\n| --- | --- | --- | --- |\n" + rows
 
 
 # --------------------------------------------------------------------------- #
@@ -501,4 +673,7 @@ MODELS_BY_KIND: dict[str, type[BaseModel]] = {
     VISUALS_KIND: VisualConcepts,
     REPORT_KIND: CampaignReport,
     REVIEW_KIND: ReviewResult,
+    SOURCES_KIND: SourceBundle,
+    COMPETITORS_KIND: CompetitorResearch,
+    FACT_CHECK_KIND: FactCheck,
 }

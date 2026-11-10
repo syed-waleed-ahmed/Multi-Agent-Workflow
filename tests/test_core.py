@@ -355,3 +355,22 @@ def test_structured_output_gives_up_after_max_repairs() -> None:
     assert fake.call_count == 3
     with pytest.raises(ValueError, match="max_repairs"):
         run_structured(fake.complete, request, _Copy, max_repairs=9)
+
+
+def test_truncated_answers_get_one_concise_retry() -> None:
+    from campaign_forge.exceptions import TruncatedResponseError
+
+    fake = FakeProvider("short answer", failures=[TruncatedResponseError("cut")])
+    ctx = _context(fake)
+    response = ctx.complete(_spec(), CompletionRequest.from_prompts("s", "write a lot"))
+    assert response.text == "short answer"
+    retry = fake.requests[1].messages[-1].content
+    assert "cut off at the length limit" in retry and "write a lot" in retry
+    assert len(fake.requests[1].messages) == 2  # still system + user (v1 clients accept it)
+    assert ctx.budget.snapshot().repairs == 1
+    assert any("truncated" in e.message for e in ctx.events.history)
+    twice = FakeProvider(
+        "x", failures=[TruncatedResponseError("cut"), TruncatedResponseError("cut")]
+    )
+    with pytest.raises(TruncatedResponseError):
+        _context(twice).complete(_spec(), CompletionRequest.from_prompts("s", "u"))

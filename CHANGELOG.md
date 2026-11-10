@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Evidence-backed research (Session 4, ADR-029).**
+  - `campaign_forge.tools`: Wikipedia search (keyless, the default), optional Tavily search (`TAVILY_API_KEY`), a guarded `SafeFetcher` for user-supplied URLs, and user sources from `.txt`, `.md`, `.csv` and `.json` files.
+  - SSRF defence (`security/url_safety.py`), re-checked on every redirect, plus robots.txt handling and size, time and content-type caps.
+  - The research agents plan queries, retrieve evidence, then synthesise. Every citation is validated against the evidence actually retrieved, so invented citations trigger repair.
+  - Artifacts embed the evidence they cite, and the `citations_verified` check uses it. The report gains a Sources section.
+- **New agents:** `competitor_research` (it may name only competitors that appear in the brief, the sources or the evidence) and `fact_checker` (claim-by-claim verdicts mapped by code).
+- **New `competitor-report` template.** Workflows can declare optional inputs; the research templates accept `sources`.
+- **CLI:** `execute --sources <files or URLs>`. With `CF_PROVIDER=fake`, the CLI and evals use a simulated offline search. New eval option `--only <ids>`.
 - **Agent library, wave 1 (Session 3, `campaign_forge.agents.library`).** Eleven agents:
   - research: `audience_research`, `market_research`;
   - strategy: `positioning`, `marketing_strategist`;
@@ -80,6 +88,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **D11: retired default model.** Groq retired `llama-3.1-8b-instant`, the default since v1, so every live run returned a 404. The default is now `qwen/qwen3.8-27b`, verified live (ADR-028). A `model_not_found` error now explains how to list the available models.
+- **D12: requests above the output cap.** Groq's free tier rejects requests whose `max_tokens` exceeds its 1,000-token output limit. Profiles now carry per-model output caps, and requests are clamped to them (ADR-030).
+- **D13: "Request too large" treated as a rate limit.** It was retried and then paused the run. It is now a non-retryable bad request with advice.
+- **D14: truncation failed the whole step.** A truncated answer now gets one bounded, concise re-ask.
+- **D15: step timeouts too short.** The 120-second step limit was shorter than free-tier rate-limit waits. The default is now 900 s, and template budgets were raised.
 - **Eval live mode crashed.** The eval harness's live mode read an attribute the Session 2 `CampaignWorkflow` facade no longer has. It now reads the model from settings.
 - **Many-channel briefs could never get a plan.** A brief may list up to 25 channels, but the plan contract capped channels at 8, and ads would have exceeded their variant limit. Found by the `many-channels` eval brief.
 - **D9:** `campaign-forge batch` now saves each campaign as soon as it finishes, so an interrupted batch keeps its completed results. A failed save is reported and the command exits `1`.

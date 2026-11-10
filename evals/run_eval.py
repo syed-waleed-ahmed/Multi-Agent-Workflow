@@ -37,9 +37,10 @@ from typing import Any
 from campaign_forge import CampaignBrief, CampaignResult, CampaignWorkflow
 from campaign_forge.config import Settings, apply_overrides, get_settings
 from campaign_forge.evaluation import check_artifact, grounded
-from campaign_forge.evaluation.offline import offline_responder
+from campaign_forge.evaluation.offline import OfflineSearch, offline_responder
 from campaign_forge.orchestration import WorkflowEngine, default_registry, get_template
 from campaign_forge.providers import FakeProvider, ProviderRouter
+from campaign_forge.tools import ToolBox, build_toolbox
 
 DEFAULT_CORPUS = Path(__file__).with_name("corpus.json")
 _PRODUCT_NAME_RE = re.compile(r"Product name:\s*(.+)")
@@ -286,12 +287,18 @@ def build_engine(offline: bool, model: str | None) -> tuple[WorkflowEngine, str]
     if offline:
         settings = Settings(_env_file=None, provider="fake")  # type: ignore[call-arg]
         router = ProviderRouter(settings, providers={"fake": FakeProvider(offline_responder)})
-        return WorkflowEngine(default_registry(), router), "offline responder"
+        engine = WorkflowEngine(default_registry(), router, tools=ToolBox([OfflineSearch()]))
+        return engine, "offline responder and offline search"
     settings = get_settings()
     if model:
         settings = apply_overrides(settings, {"model": model})
     router = ProviderRouter(settings)
-    return WorkflowEngine(default_registry(), router), f"{router.global_provider} {settings.model}"
+    tools = build_toolbox(settings)
+    engine = WorkflowEngine(default_registry(), router, tools=tools)
+    return (
+        engine,
+        f"{router.global_provider} {settings.model}; tools: {', '.join(tools.ids) or 'none'}",
+    )
 
 
 def build_workflow(offline: bool, model: str | None) -> CampaignWorkflow:
@@ -367,6 +374,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default=None, help="Override the model id.")
     parser.add_argument("--limit", type=int, default=None, help="Only run the first N briefs.")
     parser.add_argument(
+        "--only", default=None, help="Comma-separated corpus ids to run (e.g. prompt-injection)."
+    )
+    parser.add_argument(
         "--min-pass-rate",
         type=float,
         default=0.8,
@@ -381,6 +391,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     entries: list[dict[str, Any]] = json.loads(args.corpus.read_text(encoding="utf-8"))
+    if args.only:
+        wanted = {i.strip() for i in args.only.split(",") if i.strip()}
+        entries = [e for e in entries if e["id"] in wanted]
     if args.limit is not None:
         entries = entries[: args.limit]
 

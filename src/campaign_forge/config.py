@@ -45,6 +45,7 @@ SECRET_FIELDS: tuple[str, ...] = (
     "gemini_api_key",
     "mistral_api_key",
     "cloudflare_api_token",
+    "tavily_api_key",
 )
 
 
@@ -98,6 +99,10 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("CLOUDFLARE_API_TOKEN", "CF_CLOUDFLARE_API_TOKEN"),
     )
+    tavily_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TAVILY_API_KEY", "CF_TAVILY_API_KEY"),
+    )
     cloudflare_account_id: str | None = Field(
         default=None,
         validation_alias=AliasChoices("CLOUDFLARE_ACCOUNT_ID", "CF_CLOUDFLARE_ACCOUNT_ID"),
@@ -113,6 +118,9 @@ class Settings(BaseSettings):
     agent_overrides: dict[str, AgentRoute] = Field(default_factory=dict)
     fallback_providers: str = ""
     free_only: bool = True
+
+    # --- Research tools -----------------------------------------------------
+    research_tools: str = "wikipedia"
 
     # --- Resilience ---------------------------------------------------------
     request_timeout: float = Field(default=60.0, gt=0.0)
@@ -168,6 +176,16 @@ class Settings(BaseSettings):
         """Every configured secret, for log redaction."""
         values = (self.secret(name) for name in SECRET_FIELDS)
         return tuple(v for v in values if v)
+
+    @property
+    def research_tool_names(self) -> tuple[str, ...]:
+        """``CF_RESEARCH_TOOLS`` parsed (comma-separated; empty disables research tools)."""
+        names: list[str] = []
+        for raw in self.research_tools.split(","):
+            name = raw.strip().lower()
+            if name and name not in names:
+                names.append(name)
+        return tuple(names)
 
     @property
     def fallback_provider_names(self) -> tuple[str, ...]:

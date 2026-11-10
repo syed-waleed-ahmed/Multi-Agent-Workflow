@@ -99,8 +99,8 @@ def _spec(
         inputs=inputs,
         output_kind=output,
         prompt_version="v1",
-        # The v1 agents repair internally with at most one extra call.
-        limits=AgentLimits(max_calls=2, max_repairs=1),
+        # The v1 agents repair internally (one extra call), plus one truncation recovery each.
+        limits=AgentLimits(max_calls=4, max_repairs=1),
     )
 
 

@@ -17,7 +17,7 @@ model. Its prompt text is its own, not a copy of another agent's.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
 from pydantic import BaseModel
@@ -25,7 +25,7 @@ from pydantic import BaseModel
 from ...core.agent import AgentCategory, AgentLimits, AgentOutput, AgentSpec, InputSpec
 from ...core.context import RunContext
 from ...domain.artifacts import Artifact, ProducedBy
-from ...domain.provenance import Claim
+from ...domain.provenance import Claim, Evidence
 from ...domain.review import REVIEW_FEEDBACK_INPUT, REVIEW_KIND, ReviewResult
 from ...domain.usage import TokenUsage
 from ...models import CampaignBrief
@@ -53,6 +53,8 @@ def make_spec(
     model_class: ModelClass = ModelClass.STANDARD,
     reviewable: bool = False,
     prompt_version: str = "1",
+    allowed_tools: tuple[str, ...] = (),
+    max_calls: int = 4,
 ) -> AgentSpec:
     return AgentSpec(
         id=agent_id,
@@ -63,7 +65,8 @@ def make_spec(
         inputs=inputs + ((FEEDBACK,) if reviewable else ()),
         output_kind=output_kind,
         model_class=model_class,
-        limits=AgentLimits(max_tokens=max_tokens, max_calls=3, max_repairs=1),
+        allowed_tools=allowed_tools,
+        limits=AgentLimits(max_tokens=max_tokens, max_calls=max_calls, max_repairs=1),
         rubric=rubric,
         prompt_version=prompt_version,
     )
@@ -153,28 +156,46 @@ class StructuredAgent(ABC):
         return ()
 
     def run(self, inputs: Mapping[str, Artifact], ctx: RunContext) -> AgentOutput:
+        return self.produce(inputs, ctx)
+
+    def produce(
+        self,
+        inputs: Mapping[str, Artifact],
+        ctx: RunContext,
+        *,
+        extra: str = "",
+        evidence: Sequence[Evidence] = (),
+        validation_context: dict[str, Any] | None = None,
+        notes: Sequence[str] = (),
+    ) -> AgentOutput:
+        """One structured call, then an artifact that embeds only the evidence it cites."""
         system = with_untrusted_policy(f"{self.role} {JSON_ONLY}")
         user = (
-            f"{self.task(inputs)}{feedback_section(inputs)}\n\n"
+            f"{self.task(inputs)}{extra}{feedback_section(inputs)}\n\n"
             f"Return ONLY a JSON object of this shape:\n{self.shape}"
         )
         result = ctx.complete_structured(
-            self.spec, CompletionRequest.from_prompts(system, user), self.output_model
+            self.spec,
+            CompletionRequest.from_prompts(system, user),
+            self.output_model,
+            validation_context=validation_context,
         )
         value = result.value
         claims_fn = getattr(value, "claims", None)
         claims: tuple[Claim, ...] = claims_fn() if callable(claims_fn) else ()
-        notes = list(self.notes(value))
+        cited = {eid for claim in claims for eid in claim.evidence_ids}
+        all_notes = [*notes, *self.notes(value)]
         if result.repairs:
-            notes.append(f"output repaired {result.repairs} time(s) to meet the contract")
+            all_notes.append(f"output repaired {result.repairs} time(s) to meet the contract")
         artifact = Artifact.from_model(
             self.spec.output_kind,
             value,
             produced_by=produced_by(self.spec, result.responses),
             claims=claims,
             usage=result.usage,
+            evidence=tuple(e for e in evidence if e.id in cited),
         )
-        return AgentOutput(artifact=artifact, notes=tuple(notes))
+        return AgentOutput(artifact=artifact, notes=tuple(all_notes))
 
 
 __all__ = [

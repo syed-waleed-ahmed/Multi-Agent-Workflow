@@ -446,3 +446,25 @@ def test_retired_model_errors_explain_what_to_do() -> None:
     provider, _ = _provider(_raising(exc))
     with pytest.raises(ProviderBadRequestError, match="may have been retired"):
         provider.complete(_request())
+
+
+def test_output_cap_clamps_requests_the_provider_would_reject() -> None:
+    provider, client = _provider(lambda _: _completion("ok"))
+    provider.complete(_request(model="qwen/qwen3.8-27b", max_tokens=1500))
+    provider.complete(_request(model="openai/gpt-oss-120b", max_tokens=1500))
+    assert client.calls[0]["max_tokens"] == 1000
+    assert client.calls[1]["max_tokens"] == 1500
+    assert GROQ.output_cap_for("qwen/qwen3.8-27b") == 1000 and GROQ.output_cap_for("x") is None
+
+
+def test_request_too_large_is_a_bad_request_not_a_rate_limit() -> None:
+    exc = _status_error(
+        openai.RateLimitError,
+        429,
+        "Request too large for model on output tokens per minute (OTPM): Limit 1000, "
+        "Requested 1500. The request's expected output tokens exceed the enforced limit",
+    )
+    provider, client = _provider(_raising(exc), max_retries=3)
+    with pytest.raises(ProviderBadRequestError, match="Lower this agent's max_tokens"):
+        provider.complete(_request())
+    assert len(client.calls) == 1

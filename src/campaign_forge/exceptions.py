@@ -166,3 +166,7 @@ class RunStateError(CampaignForgeError):
 
 class RunNotFoundError(CampaignForgeError):
     """Raised when a run id is unknown in the given scope."""
+
+
+class ToolError(CampaignForgeError):
+    """Raised when a research tool cannot return evidence (network, policy, limits)."""

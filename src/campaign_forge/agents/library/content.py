@@ -152,9 +152,10 @@ class SocialMediaAgent(StructuredAgent):
         return (
             f"Campaign brief:\n{framed_brief(inputs)}\n\n"
             f"{context(inputs, 'copy', 'positioning')}\n\n"
-            "Task: plan a 2-week social calendar with 6-10 posts across these channels where "
+            "Task: plan a 2-week social calendar with 5-8 posts across these channels where "
             f"they make sense: {', '.join(brief.channels)}. Use day numbers 1-14, vary the "
-            "formats (post, reel, story, carousel, thread), and keep X posts under 280 characters."
+            "formats (post, reel, story, carousel, thread), keep captions under 220 characters and "
+            "X posts under 280, and use at most 4 hashtags per post."
         )
 
     def notes(self, value: Any) -> tuple[str, ...]:
@@ -188,9 +189,9 @@ class EmailMarketingAgent(StructuredAgent):
         return (
             f"Campaign brief:\n{framed_brief(inputs)}\n\n"
             f"{context(inputs, 'copy', 'audience')}\n\n"
-            "Task: write a 3-5 email sequence for this campaign. Give each email a send day "
+            "Task: write a 3-4 email sequence for this campaign. Give each email a send day "
             "(0 = launch), a single purpose, a subject under 60 characters, preview text "
-            "under 90 characters, a short body, and a call to action."
+            "under 90 characters, a body under 90 words, and a call to action."
         )
 
     def notes(self, value: Any) -> tuple[str, ...]:

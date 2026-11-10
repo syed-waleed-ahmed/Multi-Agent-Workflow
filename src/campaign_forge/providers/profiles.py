@@ -54,6 +54,9 @@ class ProviderProfile(BaseModel):
     quota_patterns: tuple[str, ...] = GENERIC_QUOTA_PATTERNS
     #: Extra request parameters by model-id prefix (sent as ``extra_body``).
     model_params: Mapping[str, Mapping[str, Any]] = Field(default_factory=dict)
+    #: Hard per-request completion caps by model-id prefix. A request asking for more
+    #: is clamped, because the provider would reject it outright.
+    max_output_tokens: Mapping[str, int] = Field(default_factory=dict)
     data_use_notice: str
     docs_url: str = ""
 
@@ -72,6 +75,11 @@ class ProviderProfile(BaseModel):
         """Extra request parameters for ``model`` (longest matching prefix wins)."""
         matches = [prefix for prefix in self.model_params if model.startswith(prefix)]
         return dict(self.model_params[max(matches, key=len)]) if matches else {}
+
+    def output_cap_for(self, model: str) -> int | None:
+        """The per-request completion cap for ``model`` (longest matching prefix), if any."""
+        matches = [prefix for prefix in self.max_output_tokens if model.startswith(prefix)]
+        return self.max_output_tokens[max(matches, key=len)] if matches else None
 
     def model_for(self, model_class: ModelClass | None) -> str | None:
         """The model for a capability class, else the profile default."""
@@ -107,6 +115,9 @@ GROQ = ProviderProfile(
     },
     # gpt-oss models spend completion tokens on reasoning; keep that small.
     model_params={"openai/gpt-oss": {"reasoning_effort": "low"}},
+    # Verified live 2026-11-10: on the free tier qwen3.8-27b allows 1,000 output tokens per
+    # minute, and a request whose max_tokens exceeds that is rejected ("Request too large").
+    max_output_tokens={"qwen/qwen3.8": 1000},
     free_tier=True,
     data_use_notice=(
         "Groq's data-use terms for the free plan were not verified on 2026-11-10. "

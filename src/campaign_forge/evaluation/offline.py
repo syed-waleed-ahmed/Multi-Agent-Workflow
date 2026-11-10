@@ -11,16 +11,73 @@ it is shown.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections.abc import Callable
 
 from ..agents.schemas import ad_channels
+from ..domain.provenance import Evidence
 from ..exceptions import ConfigurationError
 from ..providers.base import CompletionRequest
+from ..tools.base import ToolSpec
 from .checks import DEFAULT_RUBRIC, RUBRICS
 
 _PRODUCT_RE = re.compile(r"Product name:\s*(.+)")
+_EVIDENCE_RE = re.compile(r"\[(ev-[0-9a-f]{12})\]")
+_CLAIM_RE = re.compile(r"^Claim (\d+):", re.MULTILINE)
+#: The competitor named in every simulated search result.
+OFFLINE_COMPETITOR = "RivalCo"
+
+OFFLINE_SEARCH_SPEC = ToolSpec(
+    id="offline_search",
+    name="Offline search (simulated)",
+    description="Deterministic simulated search results for tests, evals and demo mode.",
+    network=False,
+)
+
+
+class OfflineSearch:
+    """A deterministic search tool: two simulated reference results per query."""
+
+    @property
+    def spec(self) -> ToolSpec:
+        return OFFLINE_SEARCH_SPEC
+
+    def search(self, query: str, *, limit: int = 3) -> list[Evidence]:
+        slug = hashlib.sha256(query.encode("utf-8")).hexdigest()[:8]
+        results = [
+            Evidence.create(
+                source=f"offline://reference/{slug}/{n}",
+                title=f"Simulated reference {n}: {query}",
+                excerpt=(
+                    f"Simulated background on {query}. Buyers in this category value durability "
+                    f"and convenience. {OFFLINE_COMPETITOR} is a well-known alternative that "
+                    "competes mainly on price."
+                ),
+            )
+            for n in (1, 2)
+        ]
+        return results[:limit]
+
+
+def _evidence_ids(request: CompletionRequest) -> list[str]:
+    ids: list[str] = []
+    for message in request.messages:
+        for found in _EVIDENCE_RE.findall(message.content):
+            if found not in ids:
+                ids.append(found)
+    return ids
+
+
+def _cited(request: CompletionRequest, text: str) -> dict[str, object]:
+    """A finding that cites the first evidence id in the prompt, if any."""
+    ids = _evidence_ids(request)
+    if ids:
+        return {"statement": text, "basis": "external_source", "evidence_ids": ids[:1]}
+    return {"statement": text, "basis": "model_assumption"}
+
+
 _CHANNELS_RE = re.compile(r"Channels:\s*(.+)")
 
 
@@ -62,6 +119,7 @@ def _audience(request: CompletionRequest) -> str:
             ],
             "insights": [
                 _finding(f"The brief positions {product} for this audience.", "user_provided"),
+                _cited(request, "Buyers in this category value durability and convenience."),
                 _finding("Buyers in this category respond to proof of durability."),
             ],
         }
@@ -72,7 +130,10 @@ def _market(request: CompletionRequest) -> str:
     return json.dumps(
         {
             "category_summary": f"{_product(request)} competes in a crowded, quality-led category.",
-            "trends": [_finding("Shoppers increasingly favour products that last longer.")],
+            "trends": [
+                _cited(request, "Shoppers in this category value durability and convenience."),
+                _finding("Shoppers increasingly favour products that last longer."),
+            ],
             "competitor_angles": [_finding("Competitors tend to lead with price promotions.")],
             "positioning_angles": ["durability", "everyday convenience", "honest value"],
         }
@@ -212,6 +273,53 @@ def _visuals(request: CompletionRequest) -> str:
     return json.dumps({"concepts": concepts})
 
 
+def _competitors(request: CompletionRequest) -> str:
+    competitors = []
+    prompt = " ".join(m.content for m in request.messages)
+    # Name a competitor only if it appears in the material (the agent's own guard enforces it).
+    if _evidence_ids(request) and OFFLINE_COMPETITOR in prompt:
+        competitors.append(
+            {
+                "name": OFFLINE_COMPETITOR,
+                "summary": f"{OFFLINE_COMPETITOR} is an established alternative.",
+                "positioning": _cited(request, f"{OFFLINE_COMPETITOR} competes mainly on price."),
+                "strengths": [_cited(request, "Well-known in the category.")],
+                "weaknesses": [_finding("Less focus on durability.")],
+            }
+        )
+    return json.dumps(
+        {
+            "competitors": competitors,
+            "opportunities": [
+                _finding(f"Lead on durability against {_product(request)}'s rivals.")
+            ],
+        }
+    )
+
+
+def _fact_check(request: CompletionRequest) -> str:
+    indices = sorted({int(i) for m in request.messages for i in _CLAIM_RE.findall(m.content)})
+    return json.dumps(
+        {
+            "verdicts": [
+                {"index": i, "verdict": "supported", "note": "Matches the evidence."}
+                for i in indices
+            ]
+        }
+    )
+
+
+def _plan_or(builder: Callable[[CompletionRequest], str]) -> Callable[[CompletionRequest], str]:
+    """Answer a research plan request with a query; otherwise use ``builder``."""
+
+    def respond(request: CompletionRequest) -> str:
+        if request.metadata.get("phase") == "plan":
+            return json.dumps({"queries": [f"{_product(request)} market"]})
+        return builder(request)
+
+    return respond
+
+
 def _critic(request: CompletionRequest) -> str:
     criteria = {c for rubric in RUBRICS.values() for c in rubric} | set(DEFAULT_RUBRIC)
     return json.dumps(
@@ -270,8 +378,10 @@ def _legacy_manager(request: CompletionRequest) -> str:
 
 
 RESPONDERS: dict[str, Callable[[CompletionRequest], str]] = {
-    "audience_research": _audience,
-    "market_research": _market,
+    "audience_research": _plan_or(_audience),
+    "market_research": _plan_or(_market),
+    "competitor_research": _plan_or(_competitors),
+    "fact_checker": _fact_check,
     "positioning": _positioning,
     "marketing_strategist": _plan,
     "copywriter": _copy,

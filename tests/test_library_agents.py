@@ -87,7 +87,7 @@ def _inputs_for(agent_cls: type) -> dict[str, Artifact]:
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(
     "agent_cls",
-    [a for a in LIBRARY_AGENTS if a.spec.id not in ("critic", "campaign_reporter")],
+    [a for a in LIBRARY_AGENTS if a.spec.id not in ("critic", "campaign_reporter", "fact_checker")],
     ids=lambda a: a.spec.id,
 )
 def test_structured_agents_produce_valid_artifacts(agent_cls: type) -> None:
@@ -390,7 +390,7 @@ def test_reporter_appends_code_rendered_deliverables_and_assumptions() -> None:
     ):
         assert heading in markdown
     assert report["missing_inputs"] == ["Email sequence"]
-    assert len(report["assumptions"]) == 3
+    assert len(report["assumptions"]) == 5
     assert any("not produced" in n for n in output.notes)
 
 
@@ -423,7 +423,7 @@ def test_every_library_agent_is_registered_once() -> None:
 
     registry = AgentRegistry()
     register_library_agents(registry)
-    assert len(registry) == 11
+    assert len(registry) == 13
     ids: Mapping[str, Any] = {s.id: s for s in registry.specs()}
     assert {"copywriter", "critic", "campaign_reporter"} <= set(ids)
     assert all(s.rubric for s in ids.values())

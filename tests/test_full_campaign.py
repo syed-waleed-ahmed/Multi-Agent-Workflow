@@ -80,7 +80,7 @@ def test_full_campaign_outputs_provenance_and_usage() -> None:
     assert result.ok and record.llm_calls == 12  # 10 agents + 2 critic reviews
     report = result.output("report", CampaignReport)
     assert report.missing_inputs == []
-    assert len(report.assumptions) == 3
+    assert len(report.assumptions) == 5  # no research tools: assumptions mode
     audience = next(a for a in record.artifacts.values() if a.kind == AUDIENCE_KIND)
     assert {c.basis for c in audience.claims} <= {Basis.USER_PROVIDED, Basis.MODEL_ASSUMPTION}
     assert record.steps["copy"].review_score == 0.75
@@ -210,7 +210,7 @@ def test_research_and_report_and_limit_checks() -> None:
         statement="Up 20%.", basis=Basis.EXTERNAL_SOURCE, evidence_ids=("ev-000000000000",)
     )
     flagged = check_artifact(_artifact(AUDIENCE_KIND, {}, (external,)))
-    assert "no_unsupported_external_claims" in [r.name for r in critical_failures(flagged)]
+    assert "citations_verified" in [r.name for r in critical_failures(flagged)]
     report = check_artifact(
         _artifact(REPORT_KIND, {"title": "t", "markdown": "## Overview\nEcoSip"}), BRIEF
     )
@@ -279,7 +279,8 @@ def test_eval_harness_scores_workflows(tmp_path: Any, capsys: pytest.CaptureFixt
     )
     assert code == 0
     data = json.loads(report.read_text(encoding="utf-8"))
-    assert data["summary"]["passed"] == 3 and data["summary"]["llm_calls"] == 36
+    # 12 agent calls + 2 research-plan calls per brief (offline search is configured).
+    assert data["summary"]["passed"] == 3 and data["summary"]["llm_calls"] == 42
     assert any(c["name"] == "report.report_sections" for c in data["results"][0]["checks"])
     with pytest.raises(Exception, match="Unknown workflow"):
         module.main(["--offline", "--workflow", "nope"])

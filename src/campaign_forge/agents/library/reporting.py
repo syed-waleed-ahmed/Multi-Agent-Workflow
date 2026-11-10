@@ -19,7 +19,7 @@ from collections.abc import Mapping
 from ...core.agent import AgentOutput, InputSpec
 from ...core.context import RunContext
 from ...domain.artifacts import Artifact
-from ...domain.provenance import Basis
+from ...domain.provenance import Basis, Evidence
 from ...evaluation.checks import REPORT_SECTIONS, missing_sections
 from ...exceptions import OutputParsingError
 from ...providers.base import CompletionRequest, CompletionResponse
@@ -104,7 +104,8 @@ class CampaignReporterAgent:
             f"{context(inputs, *(name for name, _, _ in _SOURCES))}\n\n"
             f"Task: write the narrative of the campaign brief for {brief.product_name} using "
             f"exactly these Markdown headings, in this order:\n{sections}\n\n"
-            "Explain the reasoning and how the pieces fit together. Do not restate every "
+            "Explain the reasoning and how the pieces fit together in 350-600 words. Do not "
+            "restate every "
             "deliverable: the full copy, ads, calendar, emails and prompts are appended "
             "automatically. Write plain Markdown, not JSON."
         )
@@ -178,6 +179,21 @@ class CampaignReporterAgent:
                 "## Assumptions to validate\n\nThese statements came from model knowledge, not "
                 "from verified sources. Check them before relying on them.\n\n"
                 + "\n".join(f"- {a}" for a in assumptions)
+            )
+        sources: dict[str, Evidence] = {}
+        for name, _, _ in _SOURCES:
+            source_artifact = inputs.get(name)
+            if source_artifact is not None:
+                for item in source_artifact.evidence:
+                    sources.setdefault(item.id, item)
+        if sources:
+            parts.append(
+                "## Sources\n\n"
+                + "\n".join(
+                    f"- [{item.id}] {item.title or item.source} - {item.source} "
+                    f"(retrieved {item.retrieved_at:%Y-%m-%d})"
+                    for item in sources.values()
+                )
             )
         if missing:
             parts.append("## Not produced in this run\n\n" + "\n".join(f"- {m}" for m in missing))

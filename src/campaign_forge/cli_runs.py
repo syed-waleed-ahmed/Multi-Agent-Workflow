@@ -27,7 +27,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .config import Settings
-from .evaluation.offline import offline_responder
+from .evaluation.offline import OfflineSearch, offline_responder
 from .exceptions import ConfigurationError
 from .loaders import load_briefs
 from .orchestration.definition import WorkflowDefinition, load_definition, validate_definition
@@ -37,6 +37,7 @@ from .orchestration.store import JsonFileRunStore
 from .orchestration.templates import BUILTIN_TEMPLATES, default_registry, get_template
 from .providers.fake import FakeProvider
 from .providers.router import ProviderRouter
+from .tools import ToolBox, build_toolbox, load_sources
 
 EXIT_NEEDS_ACTION = 3
 _STATUS_STYLE = {
@@ -61,10 +62,14 @@ def build_engine(settings: Settings) -> WorkflowEngine:
     router = ProviderRouter(settings)
     if router.global_provider == "fake":
         router.add_provider("fake", FakeProvider(offline_responder))
+        tools = ToolBox([OfflineSearch()])
+    else:
+        tools = build_toolbox(settings)
     return WorkflowEngine(
         default_registry(load_plugins=True),
         router,
         store=JsonFileRunStore(settings.runs_dir),
+        tools=tools,
     )
 
 
@@ -93,6 +98,12 @@ def add_engine_commands(subparsers: Any, common: Any) -> None:
     execute = subparsers.add_parser("execute", help="Run a workflow with checkpoints")
     execute.add_argument("workflow", help="Template id or path to a JSON definition")
     execute.add_argument("--brief", type=Path, required=True, help="JSON file with one brief")
+    execute.add_argument(
+        "--sources",
+        nargs="*",
+        default=[],
+        help="Your own sources: .txt/.md/.csv/.json files or http(s) URLs (fetched safely)",
+    )
     common(execute)
     execute.set_defaults(func=cmd_execute, needs_settings=True)
 
@@ -192,8 +203,13 @@ def cmd_execute(args: argparse.Namespace, console: Console, settings: Settings) 
         raise ConfigurationError(
             f"{args.brief} holds {len(briefs)} briefs; 'execute' takes exactly one (use 'batch')."
         )
+    inputs: dict[str, Any] = {"brief": briefs[0]}
+    if args.sources:
+        if definition.input_kind("sources") is None:
+            raise ConfigurationError(f"Workflow {definition.id!r} does not accept --sources.")
+        inputs["sources"] = load_sources(args.sources)
     engine = build_engine(settings)
-    result = engine.start(definition, {"brief": briefs[0]})
+    result = engine.start(definition, inputs)
     return _report(console, result, args.json, settings)
 
 

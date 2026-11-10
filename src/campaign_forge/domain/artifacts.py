@@ -14,7 +14,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from .provenance import Claim
+from .provenance import Claim, Evidence
 from .usage import TokenUsage
 
 ARTIFACT_KIND_PATTERN = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+@[1-9][0-9]*$"
@@ -48,6 +48,8 @@ class Artifact(BaseModel):
     kind: str = Field(pattern=ARTIFACT_KIND_PATTERN)
     data: dict[str, Any]
     claims: tuple[Claim, ...] = ()
+    #: The evidence this artifact's claims cite, so it can be verified on its own.
+    evidence: tuple[Evidence, ...] = ()
     produced_by: ProducedBy
     usage: TokenUsage = TokenUsage()
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -61,12 +63,14 @@ class Artifact(BaseModel):
         produced_by: ProducedBy,
         claims: tuple[Claim, ...] = (),
         usage: TokenUsage | None = None,
+        evidence: tuple[Evidence, ...] = (),
     ) -> Artifact:
         """Create an artifact from a validated Pydantic payload."""
         return cls(
             kind=kind,
             data=payload.model_dump(mode="json"),
             claims=claims,
+            evidence=evidence,
             produced_by=produced_by,
             usage=usage or TokenUsage(),
         )

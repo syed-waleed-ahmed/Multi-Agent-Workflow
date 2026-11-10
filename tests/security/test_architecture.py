@@ -27,6 +27,7 @@ LAYERS: dict[str, int] = {
     "campaign_forge.config": 1,
     "campaign_forge.loaders": 1,
     "campaign_forge.providers": 2,
+    "campaign_forge.tools": 2,
     "campaign_forge.llm": 2,
     "campaign_forge.core": 3,
     "campaign_forge.agents": 4,

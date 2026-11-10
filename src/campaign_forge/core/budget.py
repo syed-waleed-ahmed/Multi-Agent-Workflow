@@ -30,6 +30,7 @@ class BudgetLimits(BaseModel):
     max_wall_seconds: float = Field(default=600.0, gt=0.0, le=86_400.0)
     max_revisions: int = Field(default=10, ge=0, le=100)
     max_repairs: int = Field(default=10, ge=0, le=100)
+    max_tool_calls: int = Field(default=20, ge=0, le=200)
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,7 @@ class BudgetSnapshot:
     elapsed_seconds: float
     revisions: int
     repairs: int
+    tool_calls: int = 0
 
     @property
     def total_tokens(self) -> int:
@@ -65,6 +67,7 @@ class Budget:
         self._usage = TokenUsage()
         self._revisions = 0
         self._repairs = 0
+        self._tool_calls = 0
 
     def reserve_call(self, max_completion_tokens: int = 0) -> None:
         """Admit one LLM call, or raise if it could breach a limit.
@@ -120,6 +123,17 @@ class Budget:
                 )
             self._repairs += 1
 
+    def charge_tool_call(self) -> None:
+        """Count one research-tool call, or raise if tool calls are exhausted."""
+        with self._lock:
+            self._check_time()
+            if self._tool_calls >= self.limits.max_tool_calls:
+                raise BudgetExceededError(
+                    "tool_calls",
+                    f"Run reached its limit of {self.limits.max_tool_calls} tool calls.",
+                )
+            self._tool_calls += 1
+
     def check_time(self) -> None:
         """Raise if the run has used up its wall-clock allowance."""
         with self._lock:
@@ -134,6 +148,7 @@ class Budget:
                 elapsed_seconds=self._clock() - self._started,
                 revisions=self._revisions,
                 repairs=self._repairs,
+                tool_calls=self._tool_calls,
             )
 
     def _check_time(self) -> None:

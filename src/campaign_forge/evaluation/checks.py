@@ -20,8 +20,10 @@ from pydantic import ValidationError
 from ..agents.schemas import (
     ADS_KIND,
     AUDIENCE_KIND,
+    COMPETITORS_KIND,
     CORE_COPY_KIND,
     EMAIL_KIND,
+    FACT_CHECK_KIND,
     MARKET_KIND,
     MODELS_BY_KIND,
     POSITIONING_KIND,
@@ -29,7 +31,7 @@ from ..agents.schemas import (
     SOCIAL_KIND,
 )
 from ..domain.artifacts import Artifact
-from ..domain.provenance import Basis
+from ..domain.provenance import unknown_evidence_ids
 from ..models import CampaignBrief
 
 #: Phrases that indicate the model obeyed an injected instruction.
@@ -47,7 +49,7 @@ GENERIC_WORDS = frozenset(
 MUST_BE_GROUNDED = frozenset({CORE_COPY_KIND, REPORT_KIND})
 #: Kinds that should mention the product (advisory).
 SHOULD_BE_GROUNDED = frozenset({ADS_KIND, SOCIAL_KIND, EMAIL_KIND, POSITIONING_KIND})
-RESEARCH_KINDS = frozenset({AUDIENCE_KIND, MARKET_KIND})
+RESEARCH_KINDS = frozenset({AUDIENCE_KIND, MARKET_KIND, COMPETITORS_KIND})
 
 #: Rubric criteria the critic scores 1-5, by artifact kind.
 DEFAULT_RUBRIC = ("on_brief", "clarity", "persuasiveness", "tone_match")
@@ -152,16 +154,30 @@ def check_artifact(artifact: Artifact, brief: CampaignBrief | None = None) -> li
 
     if artifact.kind in RESEARCH_KINDS:
         labeled = bool(artifact.claims)
-        external = [c for c in artifact.claims if c.basis is Basis.EXTERNAL_SOURCE]
         results.append(
             CheckResult("claims_labeled", labeled, True, "" if labeled else "no labeled claims")
         )
+
+    if artifact.claims:
+        # Every cited evidence id must be evidence the artifact actually carries.
+        unknown = unknown_evidence_ids(artifact.claims, {e.id for e in artifact.evidence})
         results.append(
             CheckResult(
-                "no_unsupported_external_claims",
-                not external,
+                "citations_verified",
+                not unknown,
                 True,
-                f"{len(external)} external claim(s) without a research tool" if external else "",
+                f"cites unknown evidence: {', '.join(sorted(unknown))}" if unknown else "",
+            )
+        )
+
+    if artifact.kind == FACT_CHECK_KIND:
+        unsupported = int(artifact.data.get("unsupported", 0))
+        results.append(
+            CheckResult(
+                "claims_supported",
+                unsupported == 0,
+                False,
+                f"{unsupported} claim(s) not supported by their evidence" if unsupported else "",
             )
         )
 

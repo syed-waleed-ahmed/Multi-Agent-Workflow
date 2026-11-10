@@ -372,8 +372,8 @@ configurable pass-rate gate.
 | CLI: `agents`, `workflows`, `execute`, `runs` (T10) | **Implemented** (S2) | `campaign_forge.cli_runs` |
 | Agent library, wave 1: 11 agents (`docs/AGENT_CATALOG.md`) | **Implemented** (S3) | `campaign_forge.agents.library`, `campaign_forge.agents.schemas` |
 | Deterministic checks, rubrics, offline responder | **Implemented** (S3) | `campaign_forge.evaluation` |
-| Agent library, wave 2 | Planned (S4, S5, S8) | - |
-| Tools and evidence-backed research (T8) | Planned (S4) | - |
+| Tools and evidence-backed research (T8): search tools, safe fetcher, user sources, citations, `competitor_research`, `fact_checker` | **Implemented** (S4) | `campaign_forge.tools`, `campaign_forge.agents.library.evidence` |
+| Agent library, wave 2 (remaining) | Planned (S5, S8) | - |
 | Memory and persistence (T9) | Planned (S5) | - |
 | Streamlit app, FastAPI (T10) | Planned (S6, S7) | - |
 

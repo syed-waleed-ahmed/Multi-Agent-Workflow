@@ -140,7 +140,7 @@ class StepDefinition(BaseModel):
     review: ReviewSpec | None = None
     approval: bool = False
     retries: int = Field(default=0, ge=0, le=2)
-    timeout_s: float | None = Field(default=None, gt=0, le=1800)
+    timeout_s: float | None = Field(default=None, gt=0, le=3600)
     optional: bool = False
     enabled: bool = True
 
@@ -165,6 +165,9 @@ class WorkflowDefinition(BaseModel):
     version: str = Field(default="1.0.0", pattern=r"^\d+\.\d+\.\d+$")
     description: str = Field(default="", max_length=1000)
     inputs: dict[Identifier, ArtifactKind]
+    #: Inputs a run may omit (e.g. user-supplied sources). Steps that bind them to a
+    #: *required* agent input are rejected by validation.
+    optional_inputs: dict[Identifier, ArtifactKind] = Field(default_factory=dict)
     steps: tuple[StepDefinition, ...] = Field(min_length=1, max_length=50)
     outputs: dict[Identifier, Reference] = Field(default_factory=dict)
     limits: BudgetLimits = BudgetLimits()
@@ -179,9 +182,13 @@ class WorkflowDefinition(BaseModel):
             problems.append(f"duplicate step ids: {', '.join(duplicates)}")
         known = set(ids)
 
+        overlap = sorted(set(self.inputs) & set(self.optional_inputs))
+        if overlap:
+            problems.append(f"inputs declared both required and optional: {', '.join(overlap)}")
+
         def check_ref(ref: str, where: str) -> None:
             kind, name = parse_ref(ref)
-            if kind == "input" and name not in self.inputs:
+            if kind == "input" and name not in self.inputs and name not in self.optional_inputs:
                 problems.append(f"{where} refers to unknown input {name!r}")
             if kind == "step" and name not in known:
                 problems.append(f"{where} refers to unknown step {name!r}")
@@ -207,6 +214,10 @@ class WorkflowDefinition(BaseModel):
         if problems:
             raise ValueError("; ".join(problems))
         return self
+
+    def input_kind(self, name: str) -> str | None:
+        """The artifact kind of a required or optional workflow input."""
+        return self.inputs.get(name) or self.optional_inputs.get(name)
 
     def step(self, step_id: str) -> StepDefinition:
         for step in self.steps:
@@ -314,7 +325,12 @@ def validate_definition(definition: WorkflowDefinition, registry: AgentRegistry)
             if name not in declared:
                 continue
             kind, source = parse_ref(ref)
-            actual = definition.inputs.get(source) if kind == "input" else output_kinds.get(source)
+            actual = definition.input_kind(source) if kind == "input" else output_kinds.get(source)
+            if kind == "input" and source in definition.optional_inputs and declared[name].required:
+                problems.append(
+                    f"step {step.id!r}: required input {name!r} is bound to optional workflow "
+                    f"input {source!r}"
+                )
             if actual is not None and actual != declared[name].kind:
                 problems.append(
                     f"step {step.id!r} input {name!r} expects {declared[name].kind}, "
@@ -338,7 +354,7 @@ def validate_definition(definition: WorkflowDefinition, registry: AgentRegistry)
                         continue
                     kind, source = parse_ref(bound)
                     actual = (
-                        definition.inputs.get(source)
+                        definition.input_kind(source)
                         if kind == "input"
                         else output_kinds.get(source)
                     )

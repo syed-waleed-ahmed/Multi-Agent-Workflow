@@ -173,6 +173,8 @@ The 2.0 provider layer adds the settings below. Every command, including the v1 
 | `CF_FALLBACK_PROVIDERS` | (empty) | Comma-separated fallbacks, used only after a quota or rate-limit failure |
 | `CF_AGENT_OVERRIDES` | `{}` | JSON map of agent to `provider` / `model` / `temperature` / `max_tokens` |
 | `CF_RUNS_DIR` | `outputs/runs` | Where `execute` checkpoints runs (JSON, one file per run) |
+| `CF_RESEARCH_TOOLS` | `wikipedia` | Search tools research agents may use: `wikipedia`, `tavily`, or empty |
+| `TAVILY_API_KEY` | (unset) | Enables Tavily web search (free tier available) |
 
 ---
 
@@ -247,9 +249,12 @@ Built-in workflows:
 | `ad-pack` | Reviewed ads |
 | `social-calendar` | A two-week social calendar |
 | `email-sequence` | An email sequence |
+| `competitor-report` | Named-competitor profiles and market research, every cited claim fact-checked |
 | `classic-campaign` | The v1 pipeline |
 
 The agents are described in [`docs/AGENT_CATALOG.md`](docs/AGENT_CATALOG.md).
+
+Research agents cite evidence. They search Wikipedia by default (Tavily if configured), and you can add your own material with `--sources notes.md data.csv https://...`. Every citation is checked against the evidence actually retrieved. Without evidence, findings are labeled as model assumptions.
 
 To try it with no API key, set `CF_PROVIDER=fake`. Every agent is then answered by a deterministic offline responder, and the output is labeled **SIMULATED**.
 

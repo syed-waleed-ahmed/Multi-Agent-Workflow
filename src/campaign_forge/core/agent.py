@@ -46,7 +46,8 @@ class AgentLimits(BaseModel):
 
     max_tokens: int = Field(default=800, gt=0, le=32_000)
     max_calls: int = Field(default=3, ge=1, le=20)
-    timeout_s: float = Field(default=120.0, gt=0.0, le=1800.0)
+    # Generous: waiting out a free-tier rate limit (about 45 s per hit) is normal, not a hang.
+    timeout_s: float = Field(default=900.0, gt=0.0, le=3600.0)
     max_repairs: int = Field(default=1, ge=0, le=3)
 
 
