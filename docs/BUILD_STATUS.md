@@ -1,7 +1,7 @@
 # Build Status
 
 - **Last updated:** 2026-11-11, end of Session 7
-- **Released version:** **`2.0.0b1`** (pre-release, tagged `v2.0.0b1` on 2026-11-11). Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
+- **Version:** **`2.0.0b1`** (pre-release), committed on `main` as `94af144`. The `v2.0.0b1` git tag and GitHub release are **not created yet**: publishing them needs the owner's go-ahead. Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
 - **Current phase:** M1 (working AI platform) and the Session 4-7 features are implemented and pass every offline gate. **The live acceptance runs passed on 2026-11-11** (v1 2/2, `full-campaign` 1/1 with no warnings). The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). Session 8 is next.
 
 ## Sessions
@@ -69,6 +69,7 @@ A run uses about 27,000 tokens of the 200,000-token daily quota. The v1 harness 
 
 ## Waiting on the owner
 
+- **Tag and publish `v2.0.0b1`.** The release commit is `94af144`, and the release notes are drafted. Creating the tag and the GitHub pre-release was blocked by the session's permission policy (it creates a public surface).
 - **Postgres/Supabase memory store:** needs a database to test against (ADR-031).
 
 ## Next session: starting instructions
