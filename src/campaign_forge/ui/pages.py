@@ -841,15 +841,15 @@ def _render_benchmark(report: BenchmarkReport) -> None:
         else:
             st.success(f"No regressions against the baseline from {baseline.started_at:%Y-%m-%d}.")
     stem = f"{report.workflow.split('@')[0]}-{report.dataset}"
-    cols = st.columns(2)
-    cols[0].download_button(
+    downloads = st.columns(2)
+    downloads[0].download_button(
         "Report (JSON)",
         report.model_dump_json(indent=2),
         f"{stem}.json",
         "application/json",
         key="lab-json",
     )
-    cols[1].download_button(
+    downloads[1].download_button(
         "Report (Markdown)", report.to_markdown(), f"{stem}.md", "text/markdown", key="lab-md"
     )
 
