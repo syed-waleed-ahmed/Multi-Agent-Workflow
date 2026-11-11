@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.0b1] - 2026-11-11
+
+The first Campaign Forge 2.0 pre-release, covering Sessions 1-7 of the 2.0 build:
+- the workflow engine and provider router;
+- a 15-agent library with evidence-backed research;
+- scoped memory and brand profiles;
+- the Streamlit app, live demo at https://campaign-forge.streamlit.app/;
+- the FastAPI service, with Docker.
+
+Live acceptance on Groq's free tier passed on 2026-11-11: the v1 pipeline 2/2, and `full-campaign` 1/1 with every check green (19 model calls, 27,129 tokens). The v1 `run`/`batch` CLI and the `CampaignWorkflow` API are unchanged. One behaviour change: `CF_FREE_ONLY` now applies to them (ADR-023).
+
 ### Added
 
 - **HTTP API (Session 7, ADR-034).** `python -m campaign_forge.api`, or `uvicorn campaign_forge.api.app:create_app --factory`. Install the `[api]` extra.
@@ -178,6 +189,8 @@ non-English input, and add a measurement layer for it.
   which all slugify to the same fallback): the previous `save()` overwrote the
   earlier file. Output files are now guaranteed distinct.
 
+[Unreleased]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/compare/v2.0.0b1...HEAD
+[2.0.0b1]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0b1
 [1.1.0]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v1.1.0
 
 ## [1.0.0] - 2026-07-05

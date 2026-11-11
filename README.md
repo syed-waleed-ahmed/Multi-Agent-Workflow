@@ -435,7 +435,7 @@ The plan, the decisions behind it and the current progress are documented in:
 - [`docs/DECISIONS.md`](docs/DECISIONS.md): architecture decision records
 - [`docs/FREE_TIER_POLICY.md`](docs/FREE_TIER_POLICY.md): how the project stays free to run
 
-Everything above this section describes v1.1.0 as implemented.
+Everything above this section describes 2.0.0b1 as implemented; the roadmap's remaining sessions (wave-2 agents, the Evaluation Lab, hardening and the 2.0 release) are tracked in the documents listed here.
 
 ---
 

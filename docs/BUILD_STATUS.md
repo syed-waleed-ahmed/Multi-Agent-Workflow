@@ -1,7 +1,7 @@
 # Build Status
 
 - **Last updated:** 2026-11-11, end of Session 7
-- **Released version:** `campaign_forge` 1.1.0. Sessions 1-6 are committed on `main` and pushed. CI runs on Python 3.10-3.13 (see the gates table). No 2.0 tag yet.
+- **Released version:** **`2.0.0b1`** (pre-release, tagged `v2.0.0b1` on 2026-11-11). Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
 - **Current phase:** M1 (working AI platform) and the Session 4-7 features are implemented and pass every offline gate. **The live acceptance runs passed on 2026-11-11** (v1 2/2, `full-campaign` 1/1 with no warnings). The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). Session 8 is next.
 
 ## Sessions
