@@ -1,6 +1,9 @@
-"""The 2.0 agent library, wave 1 (docs/AGENT_CATALOG.md).
+"""The 2.0 agent library (docs/AGENT_CATALOG.md): 28 agents.
 
-Fifteen agents, each with a distinct output contract (11 from wave 1, the Session 4
+Wave 2 (Session 8) adds 13: funnel, growth, experiments, performance, landing page,
+product descriptions, repurposing, blog, keywords, SEO planning and optimisation,
+safety review and CRO (``WAVE2_AGENTS``). The first fifteen, each with a distinct
+output contract (11 from wave 1, the Session 4
 evidence agents ``competitor_research`` and ``fact_checker``, and the Session 5 brand
 agents ``brand_strategist`` and ``brand_consistency``):
 
@@ -22,6 +25,20 @@ from .quality import CriticAgent, FactCheckerAgent, JudgeVerdict, rubric_score
 from .reporting import CampaignReporterAgent
 from .research import AudienceResearchAgent, CompetitorResearchAgent, MarketResearchAgent
 from .strategy import MarketingStrategistAgent, PositioningAgent
+from .wave2_content import (
+    BlogWriterAgent,
+    LandingPageAgent,
+    ProductDescriptionAgent,
+    RepurposerAgent,
+)
+from .wave2_quality import CroAdvisorAgent, SafetyReviewerAgent
+from .wave2_seo import KeywordResearchAgent, SeoContentPlannerAgent, SeoOptimizerAgent
+from .wave2_strategy import (
+    ExperimentDesignerAgent,
+    FunnelStrategistAgent,
+    GrowthStrategistAgent,
+    PerformanceAnalystAgent,
+)
 
 LIBRARY_AGENTS: tuple[type, ...] = (
     AudienceResearchAgent,
@@ -40,6 +57,23 @@ LIBRARY_AGENTS: tuple[type, ...] = (
     BrandStrategistAgent,
     BrandConsistencyAgent,
 )
+#: Wave 2 (Session 8): the remaining catalog agents.
+WAVE2_AGENTS: tuple[type, ...] = (
+    FunnelStrategistAgent,
+    GrowthStrategistAgent,
+    ExperimentDesignerAgent,
+    PerformanceAnalystAgent,
+    LandingPageAgent,
+    ProductDescriptionAgent,
+    RepurposerAgent,
+    BlogWriterAgent,
+    KeywordResearchAgent,
+    SeoContentPlannerAgent,
+    SeoOptimizerAgent,
+    SafetyReviewerAgent,
+    CroAdvisorAgent,
+)
+LIBRARY_AGENTS = LIBRARY_AGENTS + WAVE2_AGENTS
 
 
 def register_library_agents(registry: AgentRegistry) -> None:
@@ -49,6 +83,20 @@ def register_library_agents(registry: AgentRegistry) -> None:
 
 
 __all__ = [
+    "BlogWriterAgent",
+    "CroAdvisorAgent",
+    "ExperimentDesignerAgent",
+    "FunnelStrategistAgent",
+    "GrowthStrategistAgent",
+    "KeywordResearchAgent",
+    "LandingPageAgent",
+    "PerformanceAnalystAgent",
+    "ProductDescriptionAgent",
+    "RepurposerAgent",
+    "SafetyReviewerAgent",
+    "SeoContentPlannerAgent",
+    "SeoOptimizerAgent",
+    "WAVE2_AGENTS",
     "LIBRARY_AGENTS",
     "AdCopyAgent",
     "ArtDirectionAgent",

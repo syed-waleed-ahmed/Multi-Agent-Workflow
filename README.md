@@ -237,6 +237,16 @@ The app starts in **demo mode** with no API key. Every agent is answered by a de
 
 Set `CF_UI_MODE=local` to use your configured provider and the same run store and memory as the CLI; local runs execute in the background while the page refreshes.
 
+### Evaluation Lab
+
+```bash
+campaign-forge bench full-campaign --offline                      # simulated, key-free, 10 briefs
+campaign-forge bench full-campaign --offline --dataset injection  # 8 injection attacks
+campaign-forge bench landing-page --only baseline-ecommerce       # live: a real benchmark
+```
+
+Every case is scored with the critic's deterministic checks. A report records the date, the mode, the provider and the models, and can be compared with a stored baseline (`--baseline`; CI fails on regressions). The same Lab is a page in the web app. Measured live results are in [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md).
+
 ### HTTP API (FastAPI)
 
 ```bash
@@ -292,6 +302,13 @@ Built-in workflows:
 | `email-sequence` | An email sequence |
 | `competitor-report` | Named-competitor profiles and market research, every cited claim fact-checked |
 | `brand-kit` | A brand profile, on-brand reviewed copy, and a brand check |
+| `seo-content-pack` | Keyword clusters (volumes only from your CSV), a content plan, a long-form article and an on-page audit |
+| `performance-review` | Metrics computed from your campaign CSV, A/B tests with sample sizes, an ICE-ranked growth backlog |
+| `product-launch` | Copy, a landing page, a launch funnel with lead magnets, launch emails |
+| `landing-page` | Copy, a reviewed landing page, a CRO checklist, A/B tests |
+| `content-repurpose` | Your own text, adapted to other formats within platform limits |
+| `ecommerce-campaign` | Copy, product-page copy, ads, a social calendar, emails |
+| `b2b-campaign` | Research, a channel plan, copy, a landing page, nurture emails, a funnel |
 | `classic-campaign` | The v1 pipeline |
 
 The agents are described in [`docs/AGENT_CATALOG.md`](docs/AGENT_CATALOG.md).
@@ -405,7 +422,7 @@ python evals/run_eval.py                     # live: real success rate on your m
 python evals/run_eval.py --report out.json   # also write a machine-readable scorecard
 ```
 
-The process exits non-zero when the pass rate falls below `--min-pass-rate` (default `0.8`), so it doubles as a nightly or pre-release gate. Add any input shape the pipeline should handle to `evals/corpus.json`; see [`evals/README.md`](evals/README.md) for the scoring details.
+The process exits non-zero when the pass rate falls below `--min-pass-rate` (default `0.8`), so it doubles as a nightly or pre-release gate. Add any input shape the pipeline should handle to `src/campaign_forge/evaluation/datasets/corpus.json`; see [`evals/README.md`](evals/README.md) for the scoring details.
 
 ---
 

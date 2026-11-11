@@ -207,10 +207,8 @@ def test_customize_skips_optional_steps_and_sets_limits() -> None:
 def test_studios_map_onto_real_templates() -> None:
     assert len(views.STUDIOS) == 7
     for studio in views.STUDIOS:
-        if studio.planned:
-            assert views.template_ids(studio) == [] and "Session 8" in studio.planned
-        else:
-            assert views.template_ids(studio) == list(studio.templates)
+        assert studio.planned is None  # every studio has templates since Session 8
+        assert views.template_ids(studio) == list(studio.templates)
     assert "full-campaign" in views.template_ids()
 
 

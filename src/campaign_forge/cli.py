@@ -33,6 +33,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from . import __version__
+from .cli_bench import add_bench_command
 from .cli_memory import add_memory_commands
 from .cli_runs import add_engine_commands
 from .config import MAX_WORKERS, Settings, apply_overrides, get_settings
@@ -49,7 +50,7 @@ _BRIEF_FIELDS: list[tuple[str, str, str]] = [
     ("goal", "--goal", "Campaign goal"),
     ("tone", "--tone", "Desired tone (e.g. friendly, premium)"),
 ]
-_KNOWN_COMMANDS = {"run", "batch", "agents", "workflows", "execute", "runs", "memory"}
+_KNOWN_COMMANDS = {"run", "batch", "agents", "workflows", "execute", "runs", "memory", "bench"}
 
 
 # --------------------------------------------------------------------------- #
@@ -109,6 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_engine_commands(subparsers, _add_common_arguments)
     add_memory_commands(subparsers, _add_common_arguments)
+    add_bench_command(subparsers, _add_common_arguments)
     return parser
 
 

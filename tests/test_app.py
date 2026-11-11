@@ -98,11 +98,12 @@ def test_every_page_renders_in_demo_mode(app: AppTest, page: str) -> None:
     assert "Demo mode" in "\n".join(w.value for w in app.sidebar.warning)
 
 
-def test_planned_studios_say_so_honestly(app: AppTest) -> None:
+def test_every_studio_opens_its_own_templates(app: AppTest) -> None:
     _ok(app.run())
     _ok(app.switch_page("views/studio_seo.py").run())
-    assert "Session 8" in app.info[0].value
-    assert not app.button  # nothing to run yet
+    assert app.selectbox(key="seo-template").options == ["SEO content pack (seo-content-pack)"]
+    _ok(app.switch_page("views/studio_analytics.py").run())
+    assert app.selectbox(key="analytics-template").value == "performance-review"
     _ok(app.switch_page("views/studio_research.py").run())
     assert app.selectbox(key="research-template").options == [
         "Competitor report (competitor-report)",
@@ -341,3 +342,22 @@ def test_a_fresh_demo_session_is_isolated() -> None:
     finally:
         first.close()
         second.close()
+
+
+def test_evaluation_lab_runs_a_simulated_benchmark(app: AppTest) -> None:
+    _ok(app.run())
+    _ok(app.switch_page("views/evaluation_lab.py").run())
+    app.selectbox(key="lab-dataset").set_value("injection")
+    _ok(app.run())
+    assert len(app.multiselect(key="lab-cases-injection-False").value) == 8
+    _ok(app.button(key="lab-run").click().run())
+    assert "SIMULATED benchmark" in app.warning[0].value
+    assert [m.value for m in app.metric][0] == "8/8"
+    assert "No regressions against the baseline" in app.success[0].value
+    assert {b.label for b in app.get("download_button")} == {"Report (JSON)", "Report (Markdown)"}
+    app.multiselect(key="lab-cases-injection-False").set_value(["direct-goal"])
+    _ok(app.button(key="lab-run").click().run())
+    assert "run them all to compare" in "\n".join(c.value for c in app.caption)
+    app.selectbox(key="lab-workflow").set_value("ad-pack")
+    _ok(app.button(key="lab-run").click().run())
+    assert "No bundled baseline" in "\n".join(c.value for c in app.caption)

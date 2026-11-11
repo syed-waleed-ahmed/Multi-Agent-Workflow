@@ -170,6 +170,46 @@ Granular tasks for each session.
 
 - [x] S7-11 D19 (found by live run 4): cap-aware routing sends long answers to the provider's strong model instead of truncating them (ADR-035)
 
-## Sessions 8-10
+## Session 8 - Agent library wave 2 and Evaluation Lab
+
+- [x] S8-01 Wave-2 contracts (`agents/schemas_wave2.py`). Numbers are computed by code, never by the model:
+  - ICE scores and ranks;
+  - experiment sample sizes;
+  - CTR, CVR, CPC, CPA and ROAS;
+  - SEO and CRO check scores;
+  - word counts and calendar weeks.
+- [x] S8-02 Strategy and analytics agents:
+  - `funnel_strategist`;
+  - `growth_strategist` (ICE by code);
+  - `experiment_designer` (sample size by code, baselines labeled as assumptions);
+  - `performance_analyst` (metrics from user CSV only; refuses without data).
+- [x] S8-03 Content agents:
+  - `landing_page` (no fabricated testimonials);
+  - `product_description` (length limits by code);
+  - `repurposer` (from copy or the user's own text; platform limits by code);
+  - `blog_writer` (outline first, then section by section).
+- [x] S8-04 SEO agents:
+  - `keyword_research` (volumes only from a user CSV, never invented);
+  - `seo_content_planner`;
+  - `seo_optimizer` (on-page checks by code, plus model recommendations).
+- [x] S8-05 Quality agents:
+  - `safety_reviewer` (rule flags by code; model flags kept only when they quote the content; no legal advice);
+  - `cro_advisor` (checklist by code, plus recommendations).
+- [x] S8-06 Templates: `seo-content-pack`, `performance-review`, `product-launch`, `landing-page`, `content-repurpose`, `ecommerce-campaign`, `b2b-campaign`. The SEO and Analytics studios open their templates.
+- [x] S8-07 Offline responders for every new agent; the offline eval runs every template
+- [x] S8-08 Evaluation Lab (`services/lab.py`):
+  - runs a dataset through a workflow, offline or live;
+  - reports success and failure rates, duration, calls, tokens, retries, scores and estimated cost;
+  - records the date, mode, provider and models;
+  - compares against a stored baseline and flags regressions.
+- [x] S8-09 Datasets and baselines:
+  - `evals/datasets/injection.json` (direct and indirect injection, with canaries);
+  - offline regression baselines in `evals/baselines/`, checked in CI.
+- [x] S8-10 Interfaces: `campaign-forge bench` CLI; the Evaluation Lab page in the app (replaces the placeholder)
+- [x] S8-11 Benchmarks only from real runs: `docs/BENCHMARKS.md`, each run recorded with its date, provider and models
+- [x] S8-12 Tests, docs (catalog, ADR, changelog, status), and release `2.0.0rc1`
+- [x] S8-13 D20 (found by a live benchmark): the JSON run store waits out a brief Windows file lock on replace; the Lab records any crash as a failed case; reports name the models that answered
+
+## Sessions 9-10
 
 Scope and acceptance criteria are in [ROADMAP.md](ROADMAP.md). Granular tasks are written at the start of each session.

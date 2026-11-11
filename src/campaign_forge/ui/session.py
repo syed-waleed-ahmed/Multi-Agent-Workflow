@@ -27,17 +27,12 @@ from ..config import Settings
 from ..domain.artifacts import Artifact
 from ..domain.brand import BrandProfile
 from ..domain.scope import Scope
-from ..evaluation.offline import OfflineSearch, offline_responder
 from ..memory.sqlite import IN_MEMORY, SqliteMemoryStore
 from ..orchestration.definition import WorkflowDefinition
 from ..orchestration.engine import WorkflowEngine
+from ..orchestration.factory import simulated_engine
 from ..orchestration.state import RunRecord
-from ..orchestration.store import InMemoryRunStore
-from ..orchestration.templates import default_registry
-from ..providers.fake import FakeProvider
-from ..providers.router import ProviderRouter
 from ..services.runs import RunService
-from ..tools import ToolBox
 
 UIMode = Literal["demo", "local"]
 
@@ -128,11 +123,7 @@ class AppSession:
 def demo_session() -> AppSession:
     """A simulated session: offline responder, in-memory stores, a sample brand."""
     settings = Settings(_env_file=None, provider="fake", ui_mode="demo")
-    router = ProviderRouter(settings)
-    router.add_provider("fake", FakeProvider(offline_responder))
-    engine = WorkflowEngine(
-        default_registry(), router, store=InMemoryRunStore(), tools=ToolBox([OfflineSearch()])
-    )
+    engine = simulated_engine()
     memory = SqliteMemoryStore(IN_MEMORY)
     session = AppSession(mode="demo", settings=settings, engine=engine, memory=memory)
     memory.save_brand(session.scope, SAMPLE_BRAND)

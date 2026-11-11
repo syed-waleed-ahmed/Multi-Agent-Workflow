@@ -19,6 +19,7 @@ from campaign_forge.agents.schemas import (
 )
 from campaign_forge.config import Settings
 from campaign_forge.domain import Artifact, Basis, Claim, ProducedBy, ReviewResult
+from campaign_forge.domain.sources import SourceBundle, SourceDocument
 from campaign_forge.evaluation import (
     INJECTION_CANARIES,
     check_artifact,
@@ -67,7 +68,12 @@ def test_every_template_is_valid_and_completes_offline(template_id: str) -> None
     engine, _ = _engine()
     definition = get_template(template_id)
     validate_definition(definition, engine.registry)
-    result = engine.start(definition, {"brief": BRIEF})
+    inputs: dict[str, Any] = {"brief": BRIEF}
+    if "sources" in definition.inputs:  # content-repurpose works from the user's own text
+        inputs["sources"] = SourceBundle(
+            documents=(SourceDocument(name="post", content="EcoSip Bottle keeps drinks cold."),)
+        )
+    result = engine.start(definition, inputs)
     assert result.ok, result.record.status_reason
     for artifact in result.outputs().values():
         assert not critical_failures(check_artifact(artifact, BRIEF)), artifact.kind

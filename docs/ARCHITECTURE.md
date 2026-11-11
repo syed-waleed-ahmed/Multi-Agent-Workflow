@@ -375,7 +375,8 @@ configurable pass-rate gate.
 | Tools and evidence-backed research (T8): search tools, safe fetcher, user sources, citations, `competitor_research`, `fact_checker` | **Implemented** (S4) | `campaign_forge.tools`, `campaign_forge.agents.library.evidence` |
 | Brand agents (`brand_strategist`, `brand_consistency`), `brand-kit`, optional brand input | **Implemented** (S5) | `campaign_forge.agents.library.brand`, `campaign_forge.domain.brand` |
 | Memory and persistence (T9): scoped SQLite memory (FTS5, LIKE fallback), redaction, SQLite run store, campaign history; Postgres deferred (ADR-031) | **Implemented** (S5) | `campaign_forge.memory`, `campaign_forge.orchestration.store`, `campaign_forge.orchestration.history` |
-| Agent library, wave 2 (remaining) | Planned (S8) | - |
+| Agent library, wave 2: 13 agents, 7 templates (ADR-036) | **Implemented** (S8) | `campaign_forge.agents.library.wave2_*`, `campaign_forge.agents.schemas_wave2` |
+| Evaluation Lab: datasets, benchmarks, baselines, `campaign-forge bench`, app page (ADR-036) | **Implemented** (S8) | `campaign_forge.services.lab`, `campaign_forge.evaluation.datasets` |
 | Streamlit app (T10): 16 navigation entries, demo and local modes, plan approval, run inspector, brand memory, workflow builder; Markdown/JSON/HTML exports (ADR-033) | **Implemented** (S6); demo live at https://campaign-forge.streamlit.app/ | `campaign_forge.ui`, `campaign_forge.exports`, `app/` |
 | FastAPI service (T10): 13 master-prompt endpoints plus approval and listings, API-key tenancy, limits, Docker (ADR-034) | **Implemented** (S7) | `campaign_forge.api`, `campaign_forge.services` |
 

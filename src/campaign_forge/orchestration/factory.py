@@ -13,7 +13,7 @@ from ..providers.fake import FakeProvider
 from ..providers.router import ProviderRouter
 from ..tools import ToolBox, build_toolbox
 from .engine import WorkflowEngine
-from .store import JsonFileRunStore, RunStore, SqliteRunStore
+from .store import InMemoryRunStore, JsonFileRunStore, RunStore, SqliteRunStore
 from .templates import default_registry
 
 
@@ -31,3 +31,14 @@ def build_engine(settings: Settings) -> WorkflowEngine:
         else JsonFileRunStore(settings.runs_dir)
     )
     return WorkflowEngine(default_registry(load_plugins=True), router, store=store, tools=tools)
+
+
+def simulated_engine() -> WorkflowEngine:
+    """A key-free, network-free engine: the offline responder, simulated search, runs kept
+    in memory (the web app's demo mode and offline benchmarks)."""
+    settings = Settings(_env_file=None, provider="fake")
+    router = ProviderRouter(settings)
+    router.add_provider("fake", FakeProvider(offline_responder))
+    return WorkflowEngine(
+        default_registry(), router, store=InMemoryRunStore(), tools=ToolBox([OfflineSearch()])
+    )

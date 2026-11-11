@@ -596,3 +596,68 @@ See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
 ### Next session: starting instructions
 
 See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
+
+---
+
+## Session 8 - Agent library wave 2 and Evaluation Lab (2026-11-11)
+
+**Goal:** the remaining catalog agents and templates, plus an Evaluation Lab whose benchmarks come only from real runs.
+
+**Owner input:** "done now start, and use claude in chrome".
+
+### What was done
+
+- **Release `v2.0.0b1`.** The tag is pushed. Creating the GitHub release page was blocked by the session's permission policy, so it is left to the owner.
+- **Wave-2 contracts** (`agents/schemas_wave2.py`; shared field types moved to `agents/fields.py`). Code computes:
+  - ICE scores and ranks;
+  - sample sizes (two-sided, alpha 0.05, power 0.8);
+  - CTR, CVR, CPC, CPA and ROAS from a user CSV;
+  - SEO and CRO checklists;
+  - word counts and calendar weeks.
+- **Honesty rules in the contracts:**
+  - landing-page testimonials and statistics must be bracketed placeholders;
+  - keyword volumes come only from a user CSV;
+  - experiment baselines are labeled assumptions unless code takes them from measured rates;
+  - a model's safety flag is kept only when its quote is in the deliverable it names.
+- **13 agents:**
+  - strategy and analytics: `funnel_strategist`, `growth_strategist`, `experiment_designer`, `performance_analyst`, `cro_advisor`;
+  - content: `landing_page`, `product_description`, `repurposer`, `blog_writer` (outline-first, then one call per section);
+  - SEO: `keyword_research`, `seo_content_planner`, `seo_optimizer`;
+  - quality: `safety_reviewer`.
+
+  The library now has 28 agents. Deterministic offline responders were added for all of them.
+- **Seven templates:** `seo-content-pack`, `performance-review`, `product-launch`, `landing-page`, `content-repurpose`, `ecommerce-campaign`, `b2b-campaign`. Every studio now opens real templates.
+- **Evaluation Lab** (`services/lab.py`):
+  - datasets ship in the package: the corpus moved there, and an 8-case injection set was added;
+  - reports record date, mode, provider, class defaults and the models that answered;
+  - baselines are compared on stable metrics only;
+  - `campaign-forge bench` and an app page; CI checks three offline baselines.
+- **Benchmarks:** `docs/BENCHMARKS.md` lists real runs only, with their JSON reports in `docs/benchmarks/`.
+
+### Verified
+
+- **In the browser:** the Evaluation Lab ran a simulated corpus benchmark at 10/10 and showed "No regressions against the baseline".
+- **Live on Groq's free tier,** one case each, both passing every check:
+  - `landing-page`: 12 calls, 13,577 tokens, review score 0.78;
+  - `seo-content-pack`: 11 calls, 11,792 tokens.
+
+### Errors found and fixed during the session
+
+1. **Re-validation erased code-set values.** Re-reading a stored artifact re-ran the contract validator without the agent's context, which reset measured baselines and CSV keyword volumes. Each rule now takes its authority from a context key that the agent always passes. Without that key, the stored values are kept, and a model can never set them.
+2. **D20: a crashed live benchmark.** Windows refused the JSON store's atomic replace ("Access is denied") while another process held the fresh checkpoint file. The replace now retries briefly and stays atomic. The Lab records any crash as a failed case instead of stopping.
+3. **Mislabelled models in benchmark reports.** The report resolved models with the `.env` default `max_tokens`, which triggered cap-aware routing and listed the strong model for every class. Reports now show class defaults (resolved for a short answer) and the models that actually answered.
+4. **Wrong baseline accepted.** A baseline for another workflow or dataset was compared silently. It is now refused.
+
+### Tests run
+
+| Command | Result |
+| --- | --- |
+| `ruff check .`, `ruff format --check .` | Pass |
+| `mypy src` (strict, 103 files) | Pass |
+| `pytest --cov=campaign_forge` | 758 passed, 97% branch coverage |
+| Offline evals and benchmarks: every template, corpus and injection | 10/10 and 8/8 |
+| Live benchmarks: `landing-page`, `seo-content-pack` | 1/1 each |
+
+### Next session: starting instructions
+
+See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".

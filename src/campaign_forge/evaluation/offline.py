@@ -22,6 +22,7 @@ from ..exceptions import ConfigurationError
 from ..providers.base import CompletionRequest
 from ..tools.base import ToolSpec
 from .checks import DEFAULT_RUBRIC, RUBRICS
+from .offline_wave2 import WAVE2_RESPONDERS
 
 _PRODUCT_RE = re.compile(r"Product name:\s*(.+)")
 _EVIDENCE_RE = re.compile(r"\[(ev-[0-9a-f]{12})\]")
@@ -414,6 +415,7 @@ RESPONDERS: dict[str, Callable[[CompletionRequest], str]] = {
     "critic": _critic,
     "campaign_reporter": _report_narrative,
     "brand_strategist": _brand,
+    **WAVE2_RESPONDERS,
     "brand_consistency": _brand_tone,
     "legacy.research": lambda r: f"## Audience\n- Buyers of {_product(r)}\n\n## Angles\n- Value",
     "legacy.copywriter": _legacy_copy,

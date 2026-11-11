@@ -1,0 +1,842 @@
+{
+  "workflow": "seo-content-pack@1.0.0",
+  "dataset": "corpus",
+  "mode": "simulated",
+  "provider": "fake",
+  "models": {
+    "small": "fake-model",
+    "standard": "fake-model",
+    "strong": "fake-model"
+  },
+  "version": "2.0.0b1",
+  "started_at": "2026-11-11T14:02:34.813909Z",
+  "finished_at": "2026-11-11T14:02:34.866779Z",
+  "summary": {
+    "cases": 10,
+    "passed": 10,
+    "success_rate": 1.0,
+    "failure_rate": 0.0,
+    "completion_rate": 1.0,
+    "avg_duration_s": 0.0,
+    "total_calls": 80,
+    "avg_calls": 8.0,
+    "total_tokens": 37011,
+    "avg_tokens": 3701.1,
+    "retries": 0,
+    "avg_review_score": null,
+    "warnings": 0,
+    "estimated_cost_usd": 0.0
+  },
+  "results": [
+    {
+      "id": "baseline-ecommerce",
+      "category": "normal",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 8,
+      "tokens": 3729,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "baseline-b2b-saas",
+      "category": "normal",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 3582,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "minimal-input",
+      "category": "minimal",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 3420,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "non-latin-name",
+      "category": "non_english",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 3551,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "arabic-full-brief",
+      "category": "non_english",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 3609,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "emoji-and-symbols",
+      "category": "weird_text",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 3727,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "long-description",
+      "category": "large",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 4434,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "many-channels",
+      "category": "weird_channels",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 3676,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "prompt-injection",
+      "category": "injection",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 3684,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "ambiguous-goal",
+      "category": "ambiguous",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.0,
+      "llm_calls": 8,
+      "tokens": 3599,
+      "retries": 0,
+      "review_score": null,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    }
+  ]
+}

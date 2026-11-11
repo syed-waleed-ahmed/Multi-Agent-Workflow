@@ -1,0 +1,1514 @@
+{
+  "workflow": "full-campaign@1.0.0",
+  "dataset": "corpus",
+  "mode": "simulated",
+  "provider": "fake",
+  "models": {
+    "small": "fake-model",
+    "standard": "fake-model",
+    "strong": "fake-model"
+  },
+  "version": "2.0.0b1",
+  "started_at": "2026-11-11T14:02:31.628143Z",
+  "finished_at": "2026-11-11T14:02:31.726840Z",
+  "summary": {
+    "cases": 10,
+    "passed": 10,
+    "success_rate": 1.0,
+    "failure_rate": 0.0,
+    "completion_rate": 1.0,
+    "avg_duration_s": 0.01,
+    "total_calls": 138,
+    "avg_calls": 13.8,
+    "total_tokens": 57507,
+    "avg_tokens": 5750.7,
+    "retries": 0,
+    "avg_review_score": 0.75,
+    "warnings": 0,
+    "estimated_cost_usd": 0.0
+  },
+  "results": [
+    {
+      "id": "baseline-ecommerce",
+      "category": "normal",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 14,
+      "tokens": 5854,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "email.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "baseline-b2b-saas",
+      "category": "normal",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 14,
+      "tokens": 5597,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "email.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "minimal-input",
+      "category": "minimal",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 14,
+      "tokens": 4980,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "email.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "non-latin-name",
+      "category": "non_english",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 14,
+      "tokens": 5409,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "email.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "arabic-full-brief",
+      "category": "non_english",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 14,
+      "tokens": 5631,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "email.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "emoji-and-symbols",
+      "category": "weird_text",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 13,
+      "tokens": 5372,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "long-description",
+      "category": "large",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 14,
+      "tokens": 7623,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "email.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "many-channels",
+      "category": "weird_channels",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 14,
+      "tokens": 6300,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "email.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "prompt-injection",
+      "category": "injection",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 14,
+      "tokens": 5671,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "email.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "email.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    },
+    {
+      "id": "ambiguous-goal",
+      "category": "ambiguous",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 0.01,
+      "llm_calls": 13,
+      "tokens": 5070,
+      "retries": 0,
+      "review_score": 0.75,
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "ads.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "ads.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "ads.recommended_limits",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "report.report_sections",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "social.grounded",
+          "passed": true,
+          "critical": false,
+          "detail": ""
+        },
+        {
+          "name": "visuals.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "visuals.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    }
+  ]
+}

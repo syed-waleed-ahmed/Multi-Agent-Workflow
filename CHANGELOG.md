@@ -6,6 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Agent library, wave 2 (Session 8, ADR-036).** The 13 new agents, by group:
+  - strategy and analytics: `funnel_strategist`, `growth_strategist`, `experiment_designer`, `performance_analyst`, `cro_advisor`;
+  - content: `landing_page`, `product_description`, `repurposer`, `blog_writer`;
+  - SEO: `keyword_research`, `seo_content_planner`, `seo_optimizer`;
+  - quality: `safety_reviewer`.
+
+  The library now has 28 agents. Numbers are computed by code, and nothing is invented: placeholder-only testimonials, keyword volumes and metrics only from your data, safety flags that must quote the content.
+- **Seven templates:** `seo-content-pack`, `performance-review`, `product-launch`, `landing-page`, `content-repurpose`, `ecommerce-campaign`, `b2b-campaign`. Every studio in the app now opens real templates.
+- **Evaluation Lab.**
+  - `campaign-forge bench` and an Evaluation Lab page run a dataset through a workflow and report pass rates, calls, tokens, retries, review scores and estimated cost. Each report carries its date, mode, provider and models.
+  - Baselines catch regressions, and CI checks three.
+  - Datasets: the corpus and a new 8-case injection set, shipped in the package.
+- **`docs/BENCHMARKS.md`:** measured live results only.
+
 ## [2.0.0b1] - 2026-11-11
 
 The first Campaign Forge 2.0 pre-release, covering Sessions 1-7 of the 2.0 build:

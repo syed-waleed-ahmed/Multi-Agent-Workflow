@@ -51,6 +51,13 @@ jobs:
       - name: Evaluation (offline, full-campaign workflow)
         run: python evals/run_eval.py --offline --workflow full-campaign --min-pass-rate 1.0
 
+      - name: Evaluation Lab (offline benchmarks against their baselines)
+        run: |
+          B=src/campaign_forge/evaluation/baselines
+          campaign-forge bench full-campaign --offline --baseline $B/full-campaign.corpus.json
+          campaign-forge bench full-campaign --offline --dataset injection --baseline $B/full-campaign.injection.json
+          campaign-forge bench seo-content-pack --offline --baseline $B/seo-content-pack.corpus.json
+
   docker:
     name: Docker image (API health and smoke test)
     runs-on: ubuntu-latest

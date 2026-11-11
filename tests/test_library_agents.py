@@ -47,6 +47,18 @@ BRIEF = CampaignBrief(
 )
 
 
+#: Wave-2 agents whose offline answer is not their artifact (several calls, or code
+#: assembles the result), and those that need user data or a deliverable to review.
+MULTI_STEP = (
+    "performance_analyst",
+    "blog_writer",
+    "seo_optimizer",
+    "safety_reviewer",
+    "cro_advisor",
+)
+NEEDS_DATA = ("performance_analyst", "seo_optimizer", "safety_reviewer", "cro_advisor")
+
+
 def _ctx(
     responder: Callable[[CompletionRequest], str] | str, **limits: Any
 ) -> tuple[RunContext, FakeProvider]:
@@ -65,7 +77,7 @@ def _inputs_for(agent_cls: type) -> dict[str, Artifact]:
         "brief": Artifact.from_model(BRIEF_KIND, BRIEF, produced_by=ProducedBy(agent_id="user"))
     }
     # Agents whose offline responder returns their artifact payload directly.
-    custom = ("critic", "fact_checker", "brand_consistency")
+    custom = ("critic", "fact_checker", "brand_consistency", *MULTI_STEP)
     by_kind = {
         cls.spec.output_kind: cls.spec.id for cls in LIBRARY_AGENTS if cls.spec.id not in custom
     }
@@ -92,7 +104,8 @@ def _inputs_for(agent_cls: type) -> dict[str, Artifact]:
     [
         a
         for a in LIBRARY_AGENTS
-        if a.spec.id not in ("critic", "campaign_reporter", "fact_checker", "brand_consistency")
+        if a.spec.id
+        not in ("critic", "campaign_reporter", "fact_checker", "brand_consistency", *NEEDS_DATA)
     ],
     ids=lambda a: a.spec.id,
 )
@@ -429,7 +442,7 @@ def test_every_library_agent_is_registered_once() -> None:
 
     registry = AgentRegistry()
     register_library_agents(registry)
-    assert len(registry) == 15
+    assert len(registry) == 28
     ids: Mapping[str, Any] = {s.id: s for s in registry.specs()}
     assert {"copywriter", "critic", "campaign_reporter"} <= set(ids)
     assert all(s.rubric for s in ids.values())

@@ -8,6 +8,10 @@ Templates:
 * ``ad-pack``, ``social-calendar``, ``email-sequence``: focused deliverables.
 * ``competitor-report``: evidence-backed competitor research, fact-checked.
 * ``brand-kit``: a brand profile, on-brand core copy, and a brand check.
+* Wave 2 (Session 8): ``seo-content-pack``, ``performance-review``,
+  ``product-launch``, ``landing-page``, ``content-repurpose``,
+  ``ecommerce-campaign`` and ``b2b-campaign``. Every content template ends with a
+  safety review, which flags risky claims for a human.
 
 Every content template accepts an optional ``brand`` input (``brand.profile@1``,
 e.g. ``execute --brand <name>``): the copywriter writes in its voice, banned terms
@@ -384,6 +388,321 @@ def brand_kit() -> WorkflowDefinition:
     )
 
 
+# --------------------------------------------------------------------------- #
+# Wave-2 templates (Session 8)
+# --------------------------------------------------------------------------- #
+def _copy_steps(*, market: bool = False) -> tuple[StepDefinition, ...]:
+    """Research, positioning and reviewed, brand-aware core copy."""
+    research = {"brief": _BRIEF, "sources": _SOURCES}
+    steps = [StepDefinition(id="audience", agent="audience_research", inputs=research)]
+    positioning_inputs = {"brief": _BRIEF, "audience": "step:audience"}
+    if market:
+        steps.append(StepDefinition(id="market", agent="market_research", inputs=research))
+        positioning_inputs["market"] = "step:market"
+    steps += [
+        StepDefinition(id="positioning", agent="positioning", inputs=positioning_inputs),
+        StepDefinition(
+            id="copy",
+            agent="copywriter",
+            inputs={
+                "brief": _BRIEF,
+                "positioning": "step:positioning",
+                "audience": "step:audience",
+                "brand": _BRAND,
+            },
+            review=_REVIEW,
+        ),
+    ]
+    return tuple(steps)
+
+
+def _safety(*deliverables: str) -> StepDefinition:
+    return StepDefinition(
+        id="safety",
+        agent="safety_reviewer",
+        inputs={name: f"step:{name}" for name in deliverables},
+    )
+
+
+def _workflow(
+    template_id: str,
+    name: str,
+    description: str,
+    steps: tuple[StepDefinition, ...],
+    outputs: tuple[str, ...],
+    limits: BudgetLimits,
+    *,
+    inputs: dict[str, str] | None = None,
+    optional_inputs: dict[str, str] | None = None,
+) -> WorkflowDefinition:
+    return WorkflowDefinition(
+        id=template_id,
+        name=name,
+        version="1.0.0",
+        description=description,
+        inputs=inputs or {"brief": BRIEF_KIND},
+        optional_inputs=_OPTIONAL_INPUTS if optional_inputs is None else optional_inputs,
+        steps=steps,
+        outputs={o: f"step:{o}" for o in outputs},
+        limits=limits,
+        max_parallel=1,
+    )
+
+
+def seo_content_pack() -> WorkflowDefinition:
+    return _workflow(
+        "seo-content-pack",
+        "SEO content pack",
+        "Keyword clusters (volumes only from your CSV), a content plan, a long-form article "
+        "written section by section, an on-page SEO audit, and a safety review.",
+        (
+            StepDefinition(
+                id="keywords",
+                agent="keyword_research",
+                inputs={"brief": _BRIEF, "sources": _SOURCES},
+            ),
+            StepDefinition(
+                id="plan",
+                agent="seo_content_planner",
+                inputs={"brief": _BRIEF, "keywords": "step:keywords"},
+            ),
+            StepDefinition(
+                id="article",
+                agent="blog_writer",
+                inputs={
+                    "brief": _BRIEF,
+                    "keywords": "step:keywords",
+                    "plan": "step:plan",
+                    "sources": _SOURCES,
+                    "brand": _BRAND,
+                },
+            ),
+            StepDefinition(
+                id="audit",
+                agent="seo_optimizer",
+                inputs={"article": "step:article", "keywords": "step:keywords"},
+            ),
+            _safety("article"),
+        ),
+        ("keywords", "plan", "article", "audit", "safety"),
+        BudgetLimits(max_llm_calls=25, max_total_tokens=80_000, max_wall_seconds=2400),
+    )
+
+
+def performance_review() -> WorkflowDefinition:
+    return _workflow(
+        "performance-review",
+        "Performance review",
+        "Metrics computed from your campaign CSV (when given), A/B tests with sample sizes, "
+        "and a growth backlog ranked by ICE.",
+        (
+            StepDefinition(
+                id="performance",
+                agent="performance_analyst",
+                inputs={"sources": _SOURCES, "brief": _BRIEF},
+                when=(Condition(source=_SOURCES, op="exists"),),
+                optional=True,
+            ),
+            StepDefinition(
+                id="experiments",
+                agent="experiment_designer",
+                inputs={"brief": _BRIEF, "performance": "step:performance"},
+            ),
+            StepDefinition(
+                id="growth",
+                agent="growth_strategist",
+                inputs={"brief": _BRIEF, "performance": "step:performance"},
+            ),
+        ),
+        ("performance", "experiments", "growth"),
+        BudgetLimits(max_llm_calls=15, max_total_tokens=40_000, max_wall_seconds=1200),
+        optional_inputs=_OPTIONAL_SOURCES,
+    )
+
+
+def product_launch() -> WorkflowDefinition:
+    landing_inputs = {
+        "brief": _BRIEF,
+        "copy": "step:copy",
+        "positioning": "step:positioning",
+        "audience": "step:audience",
+        "brand": _BRAND,
+    }
+    return _workflow(
+        "product-launch",
+        "Product launch",
+        "Research, positioning and reviewed copy, then a reviewed landing page, a launch "
+        "funnel with lead magnets, a launch email sequence, and a safety review.",
+        (
+            *_copy_steps(),
+            StepDefinition(
+                id="landing", agent="landing_page", inputs=landing_inputs, review=_REVIEW
+            ),
+            StepDefinition(
+                id="funnel",
+                agent="funnel_strategist",
+                inputs={
+                    "brief": _BRIEF,
+                    "positioning": "step:positioning",
+                    "audience": "step:audience",
+                    "brand": _BRAND,
+                },
+            ),
+            StepDefinition(
+                id="email",
+                agent="email_marketing",
+                inputs={"brief": _BRIEF, "copy": "step:copy", "audience": "step:audience"},
+                optional=True,
+            ),
+            _safety("copy", "landing", "email"),
+        ),
+        ("copy", "landing", "funnel", "email", "safety"),
+        BudgetLimits(max_llm_calls=30, max_total_tokens=100_000, max_wall_seconds=3600),
+    )
+
+
+def landing_page() -> WorkflowDefinition:
+    return _workflow(
+        "landing-page",
+        "Landing page",
+        "Reviewed copy and a reviewed landing page, a conversion checklist with prioritised "
+        "fixes, A/B tests with sample sizes, and a safety review.",
+        (
+            *_copy_steps(),
+            StepDefinition(
+                id="landing",
+                agent="landing_page",
+                inputs={
+                    "brief": _BRIEF,
+                    "copy": "step:copy",
+                    "positioning": "step:positioning",
+                    "audience": "step:audience",
+                    "brand": _BRAND,
+                },
+                review=_REVIEW,
+            ),
+            StepDefinition(
+                id="cro", agent="cro_advisor", inputs={"landing": "step:landing", "brief": _BRIEF}
+            ),
+            StepDefinition(
+                id="experiments",
+                agent="experiment_designer",
+                inputs={"brief": _BRIEF, "landing": "step:landing"},
+                optional=True,
+            ),
+            _safety("copy", "landing"),
+        ),
+        ("copy", "landing", "cro", "experiments", "safety"),
+        BudgetLimits(max_llm_calls=25, max_total_tokens=80_000, max_wall_seconds=3000),
+    )
+
+
+def content_repurpose() -> WorkflowDefinition:
+    return _workflow(
+        "content-repurpose",
+        "Content repurposing",
+        "Turns your own text (a post, an article, notes) into other formats within each "
+        "platform's limits, then a safety review.",
+        (
+            StepDefinition(
+                id="repurposed",
+                agent="repurposer",
+                inputs={"brief": _BRIEF, "sources": _SOURCES, "brand": _BRAND},
+                review=_REVIEW,
+            ),
+            _safety("repurposed"),
+        ),
+        ("repurposed", "safety"),
+        BudgetLimits(max_llm_calls=10, max_total_tokens=30_000, max_wall_seconds=1200),
+        inputs={"brief": BRIEF_KIND, "sources": SOURCES_KIND},
+        optional_inputs={"brand": BRAND_KIND},
+    )
+
+
+def ecommerce_campaign() -> WorkflowDefinition:
+    content = {"brief": _BRIEF, "copy": "step:copy", "positioning": "step:positioning"}
+    return _workflow(
+        "ecommerce-campaign",
+        "E-commerce campaign",
+        "Research, positioning and reviewed copy, reviewed product-page copy, ads, a social "
+        "calendar, an email sequence (when email is a channel), and a safety review.",
+        (
+            *_copy_steps(),
+            StepDefinition(
+                id="product",
+                agent="product_description",
+                inputs={**content, "brand": _BRAND},
+                review=_REVIEW,
+            ),
+            StepDefinition(id="ads", agent="ad_copy", inputs=content, optional=True),
+            StepDefinition(id="social", agent="social_media", inputs=content, optional=True),
+            StepDefinition(
+                id="email",
+                agent="email_marketing",
+                inputs={"brief": _BRIEF, "copy": "step:copy", "audience": "step:audience"},
+                when=(Condition(source=_BRIEF, path="channels", op="contains", value="email"),),
+                optional=True,
+            ),
+            _safety("copy", "product", "ads", "social", "email"),
+        ),
+        ("copy", "product", "ads", "social", "email", "safety"),
+        BudgetLimits(max_llm_calls=35, max_total_tokens=120_000, max_wall_seconds=3600),
+    )
+
+
+def b2b_campaign() -> WorkflowDefinition:
+    return _workflow(
+        "b2b-campaign",
+        "B2B campaign",
+        "Audience and market research, positioning, a channel plan, reviewed copy, a reviewed "
+        "landing page, a nurture email sequence, a demand-generation funnel, and a safety "
+        "review.",
+        (
+            *_copy_steps(market=True),
+            StepDefinition(
+                id="strategy",
+                agent="marketing_strategist",
+                inputs={
+                    "brief": _BRIEF,
+                    "positioning": "step:positioning",
+                    "audience": "step:audience",
+                },
+            ),
+            StepDefinition(
+                id="landing",
+                agent="landing_page",
+                inputs={
+                    "brief": _BRIEF,
+                    "copy": "step:copy",
+                    "positioning": "step:positioning",
+                    "audience": "step:audience",
+                    "brand": _BRAND,
+                },
+                review=_REVIEW,
+            ),
+            StepDefinition(
+                id="email",
+                agent="email_marketing",
+                inputs={"brief": _BRIEF, "copy": "step:copy", "audience": "step:audience"},
+                optional=True,
+            ),
+            StepDefinition(
+                id="funnel",
+                agent="funnel_strategist",
+                inputs={
+                    "brief": _BRIEF,
+                    "positioning": "step:positioning",
+                    "audience": "step:audience",
+                    "brand": _BRAND,
+                },
+            ),
+            _safety("copy", "landing", "email"),
+        ),
+        ("strategy", "copy", "landing", "email", "funnel", "safety"),
+        BudgetLimits(max_llm_calls=40, max_total_tokens=150_000, max_wall_seconds=3600),
+    )
+
+
 @dataclass(frozen=True)
 class TemplateInfo:
     """A catalog entry: what the planner and the UI know about a template."""
@@ -412,6 +731,13 @@ BUILTIN_TEMPLATES: Mapping[str, TemplateInfo] = {
         _info(email_sequence),
         _info(competitor_report),
         _info(brand_kit),
+        _info(seo_content_pack),
+        _info(performance_review),
+        _info(product_launch),
+        _info(landing_page),
+        _info(content_repurpose),
+        _info(ecommerce_campaign),
+        _info(b2b_campaign),
     )
 }
 DEFAULT_TEMPLATE = "full-campaign"

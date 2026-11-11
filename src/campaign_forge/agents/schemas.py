@@ -31,6 +31,8 @@ from ..domain.provenance import Basis, Claim
 from ..domain.review import REVIEW_KIND, ReviewResult
 from ..domain.sources import SOURCES_KIND, SourceBundle
 from ..models import MAX_CHANNELS, CampaignBrief
+from .fields import Long, Short, Text, cell, clip, context_of
+from .schemas_wave2 import WAVE2_MODELS
 
 BRIEF_KIND = "input.brief@1"
 AUDIENCE_KIND = "research.audience@1"
@@ -47,28 +49,15 @@ COMPETITORS_KIND = "research.competitors@1"
 FACT_CHECK_KIND = "quality.fact_check@1"
 BRAND_CHECK_KIND = "quality.brand_check@1"
 
-Short = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
-Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=800)]
-Long = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
-
 _HASHTAG_RE = re.compile(r"[^\w]+", re.UNICODE)
-
-
-def _clip(text: str, limit: int = 160) -> str:
-    text = " ".join(text.split())
-    return text if len(text) <= limit else text[: limit - 3].rstrip() + "..."
-
-
-def _cell(text: str) -> str:
-    """Escape a value for a Markdown table cell."""
-    return " ".join(str(text).split()).replace("|", "\\|")
+_clip = clip
+_cell = cell
 
 
 # --------------------------------------------------------------------------- #
 # Research
 # --------------------------------------------------------------------------- #
-def _context(info: ValidationInfo) -> dict[str, Any]:
-    return info.context if isinstance(info.context, dict) else {}
+_context = context_of
 
 
 class Finding(BaseModel):
@@ -762,4 +751,5 @@ MODELS_BY_KIND: dict[str, type[BaseModel]] = {
     FACT_CHECK_KIND: FactCheck,
     BRAND_KIND: BrandProfile,
     BRAND_CHECK_KIND: BrandCheck,
+    **WAVE2_MODELS,
 }

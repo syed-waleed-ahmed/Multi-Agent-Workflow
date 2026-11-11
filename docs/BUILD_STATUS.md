@@ -1,8 +1,8 @@
 # Build Status
 
-- **Last updated:** 2026-11-11, end of Session 7
-- **Version:** **`2.0.0b1`** (pre-release), committed on `main` as `94af144`. The `v2.0.0b1` git tag and GitHub release are **not created yet**: publishing them needs the owner's go-ahead. Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
-- **Current phase:** M1 (working AI platform) and the Session 4-7 features are implemented and pass every offline gate. **The live acceptance runs passed on 2026-11-11** (v1 2/2, `full-campaign` 1/1 with no warnings). The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). Session 8 is next.
+- **Last updated:** 2026-11-11, end of Session 8
+- **Version:** **`2.0.0b1`** (pre-release), tagged **`v2.0.0b1`** at `94af144` (pushed 2026-11-11). The GitHub release page is not created yet: the permission policy blocked it, so it is left to the owner. Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
+- **Current phase:** The full agent catalog (28 agents, 14 templates), memory, the web app, the API and the Evaluation Lab are implemented and pass every offline gate. **The live acceptance runs passed on 2026-11-11** (v1 2/2, `full-campaign` 1/1 with no warnings). The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). Session 9 (security hardening and live mode) is next.
 
 ## Sessions
 
@@ -16,8 +16,8 @@
 | S5 | Memory and persistence | **Done**, except the Postgres store (deferred, ADR-031) |
 | S6 | Streamlit app and early demo deployment | **Done**; demo live at https://campaign-forge.streamlit.app/ |
 | S7 | FastAPI service | **Done** (Docker verified in CI) |
-| S8 | Agent library wave 2 and Evaluation Lab | Next |
-| S9 | Security hardening and live mode | Not started |
+| S8 | Agent library wave 2 and Evaluation Lab | **Done**: 13 agents, 7 templates, Lab, benchmarks from real runs ([BENCHMARKS.md](BENCHMARKS.md)) |
+| S9 | Security hardening and live mode | Next |
 | S10 | Release and presentation | Not started |
 
 ## Quality gates (measured 2026-11-10, end of Session 6, Python 3.10, openai 2.44.0, streamlit 1.65.0)
@@ -63,13 +63,13 @@ A run uses about 27,000 tokens of the 200,000-token daily quota. The v1 harness 
 
 | ID | Summary | Status |
 | --- | --- | --- |
-| D1-D5, D7-D19 | D1-D10: [PROJECT_AUDIT.md](PROJECT_AUDIT.md). D11-D19: [SESSION_LOG.md](SESSION_LOG.md), ADR-028, ADR-030, ADR-032 and ADR-035 | **Fixed**, and confirmed by live run 5 |
+| D1-D5, D7-D20 | D1-D10: [PROJECT_AUDIT.md](PROJECT_AUDIT.md). D11-D20: [SESSION_LOG.md](SESSION_LOG.md), ADR-028, ADR-030, ADR-032 and ADR-035 | **Fixed**. D11-D19 are confirmed by live run 5, and D20 by the live benchmark reruns. |
 | D6 | Brief text in prompts without data framing | **Partially fixed**: every agent frames its inputs, brand profiles included. Hardening follows in S9. |
 | - | DNS rebinding between the URL check and the connection (user-supplied URLs) | Documented residual risk ([SECURITY.md](SECURITY.md)) |
 
 ## Waiting on the owner
 
-- **Tag and publish `v2.0.0b1`.** The release commit is `94af144`, and the release notes are drafted. Creating the tag and the GitHub pre-release was blocked by the session's permission policy (it creates a public surface).
+- **GitHub release for `v2.0.0b1`.** The tag is pushed, and the release notes are drafted. Creating the release page was blocked by the session's permission policy (it creates a public surface).
 - **Postgres/Supabase memory store:** needs a database to test against (ADR-031).
 
 ## Next session: starting instructions
@@ -78,4 +78,4 @@ A run uses about 27,000 tokens of the 200,000-token daily quota. The v1 harness 
 2. Run `git status`, then the gates: `ruff check .`, `ruff format --check .`, `mypy src`, `pytest`, `python evals/run_eval.py --offline`, `python evals/run_eval.py --offline --workflow full-campaign`.
 3. If the Groq daily quota has refilled, rerun the live acceptance (see "Live runs") and record the numbers.
 4. Check that https://campaign-forge.streamlit.app/ still loads; a push to `main` redeploys it automatically.
-5. Start Session 8 (agent library wave 2 and Evaluation Lab). Write its granular tasks into [TASK_BOARD.md](TASK_BOARD.md) first, from [ROADMAP.md](ROADMAP.md) section S8.
+5. Start Session 9 (security hardening and live mode). Write its granular tasks into [TASK_BOARD.md](TASK_BOARD.md) first, from [ROADMAP.md](ROADMAP.md) section S9.

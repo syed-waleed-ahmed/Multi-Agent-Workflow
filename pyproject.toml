@@ -70,7 +70,7 @@ version = { attr = "campaign_forge.__version__" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-campaign_forge = ["py.typed"]
+campaign_forge = ["py.typed", "evaluation/datasets/*.json", "evaluation/baselines/*.json"]
 
 # ---------------------------------------------------------------------------
 # Tooling

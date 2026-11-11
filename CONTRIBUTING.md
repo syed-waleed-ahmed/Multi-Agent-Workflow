@@ -64,7 +64,7 @@ parsing, or the workflow.
 - **Tests** accompany behavioural changes. The suite must stay fully offline -
   no real API keys or network calls. Inject a fake LLM client instead. When you
   fix a bug triggered by an unusual input, add that input shape to
-  `evals/corpus.json` so the eval harness guards against a regression.
+  `src/campaign_forge/evaluation/datasets/corpus.json` so the eval harness guards against a regression.
 
 ## Adding a new agent
 

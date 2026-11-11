@@ -1,0 +1,129 @@
+{
+  "workflow": "landing-page@1.0.0",
+  "dataset": "corpus",
+  "mode": "live",
+  "provider": "groq",
+  "models": {
+    "small": "qwen/qwen3.8-27b",
+    "standard": "qwen/qwen3.8-27b",
+    "strong": "openai/gpt-oss-120b"
+  },
+  "version": "2.0.0b1",
+  "started_at": "2026-11-11T14:14:39.163368Z",
+  "finished_at": "2026-11-11T14:19:12.629304Z",
+  "summary": {
+    "cases": 1,
+    "passed": 1,
+    "success_rate": 1.0,
+    "failure_rate": 0.0,
+    "completion_rate": 1.0,
+    "avg_duration_s": 273.46,
+    "total_calls": 12,
+    "avg_calls": 12.0,
+    "total_tokens": 13577,
+    "avg_tokens": 13577.0,
+    "retries": 1,
+    "avg_review_score": 0.775,
+    "warnings": 0,
+    "estimated_cost_usd": 0.0
+  },
+  "results": [
+    {
+      "id": "baseline-ecommerce",
+      "category": "normal",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 273.46,
+      "llm_calls": 12,
+      "tokens": 13577,
+      "retries": 1,
+      "review_score": 0.775,
+      "models_used": [
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b"
+      ],
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "copy.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "copy.grounded",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "cro.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "cro.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "experiments.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "experiments.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "experiments.citations_verified",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "landing.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "landing.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    }
+  ]
+}

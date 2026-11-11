@@ -77,6 +77,25 @@ Decisions made while building wave 1 are recorded in ADR-026 and ADR-027:
 - **`brand_consistency` makes one model call, for tone only.** Code counts banned and preferred terms in every content field and ignores code-written labels such as platform names and warnings. Code also sets `passed`: no banned term, and a tone score of at least 0.5.
 - **Optional brand input.** Every content template accepts `brand`. The critic sees it too, so reviews judge the copy against the brand's voice. `full-campaign` adds a `brand_check` step that runs only when a brand is given. The report includes the profile and the check.
 
+## 1c. Implementation notes (Session 8, wave 2)
+
+- **All 37 requested agent names now map to an implemented agent.** The library has 28 agents (13 added in wave 2), registered in `LIBRARY_AGENTS`.
+- **Numbers are computed by code.** The model rates or proposes; code computes:
+  - ICE scores and ranks (`growth_strategist`);
+  - sample sizes, from a two-sided two-proportion test with alpha 0.05 and power 0.8 (`experiment_designer`);
+  - CTR, CVR, CPC, CPA and ROAS (`performance_analyst`);
+  - on-page SEO checks (`seo_optimizer`) and a CRO checklist (`cro_advisor`);
+  - word counts and calendar weeks.
+- **Nothing is invented.**
+  - Landing-page testimonials and statistics must be bracketed placeholders.
+  - Keyword volumes come only from a user CSV (`keyword`, `volume`); without one the field is empty and the artifact says so.
+  - `performance_analyst` refuses to run without a performance CSV.
+  - Experiment baselines are labeled assumptions unless code sets them from the user's measured rates.
+  - A model's safety flag is kept only when its quote appears in the deliverable it names.
+- **`blog_writer` is outline-first.** One outline call, then one call per section, so every call fits a free tier's per-request output cap.
+- **Deviation: `cro_advisor` takes a landing-page artifact** (from `landing_page`), not a URL. Auditing your own page text is covered by `seo_optimizer`.
+- **Safety reviews.** Every wave-2 content template ends with `safety_reviewer`. Its flags are prompts for human review, not legal advice.
+
 ## 2. Agent specification (every agent)
 
 ```text
@@ -118,8 +137,8 @@ the agent lands.
 | `positioning` | `strategy.positioning@1` | Positioning statement, value propositions, feature-to-benefit ladder, messaging pillars, proof points needed | - | W1 | PositioningAgent, ProductResearchAgent |
 | `marketing_strategist` | `strategy.plan@1` | Objectives, KPIs, channel mix with rationale, phases. If the user gives a budget, code computes the allocation from model-proposed weights. | - | W1 | MarketingStrategistAgent |
 | `brand_strategist` | `brand.profile@1` | Voice and tone, do and don't lists, vocabulary, visual identity direction; saved to brand memory with `memory brand save --run` | memory | **S5, implemented** | BrandStrategistAgent, BrandIdentityAgent |
-| `funnel_strategist` | `strategy.funnel@1` | Funnel stages, content per stage, conversion points, lead-magnet concepts | - | S8 | FunnelStrategyAgent; lead magnets |
-| `growth_strategist` | `strategy.growth@1` | Growth experiment backlog. The model proposes impact, confidence and ease; code computes ICE scores and ranks. | - | S8 | GrowthStrategyAgent |
+| `funnel_strategist` | `strategy.funnel@1` | Funnel stages, content per stage, conversion points, lead-magnet concepts | - | **S8, implemented** | FunnelStrategyAgent; lead magnets |
+| `growth_strategist` | `strategy.growth@1` | Growth experiment backlog. The model proposes impact, confidence and ease; code computes ICE scores and ranks. | - | **S8, implemented** | GrowthStrategyAgent |
 
 ### Content
 
@@ -129,18 +148,18 @@ the agent lands.
 | `ad_copy` | `content.ads@1` | Ad variants per platform, with character limits checked by code against a limits table | - | W1 | AdCopyAgent; advertising campaigns |
 | `social_media` | `content.social@1` | Platform-specific posts plus a content calendar (dates computed by code from start date and cadence) | - | W1 | SocialMediaAgent; content calendars |
 | `email_marketing` | `content.email_sequence@1` | Email sequence: subject, preview text, body, CTA and send-day offset for each email | - | W1 | EmailMarketingAgent |
-| `blog_writer` | `content.article@1` | Long-form article, generated outline-first and then section by section to fit free-tier token limits | user sources | S8 | BlogWriterAgent |
-| `landing_page` | `content.landing_page@1` | Landing-page copy section by section (hero, benefits, proof, FAQ, CTA) | - | S8 | LandingPageAgent |
-| `product_description` | `content.product_descriptions@1` | Short, long and bullet descriptions per marketplace style | - | S8 | ProductDescriptionAgent; e-commerce |
-| `repurposer` | `content.repurposed@1` | Turns an existing artifact or user text into other formats | user sources | S8 | Content repurposing |
+| `blog_writer` | `content.article@1` | Long-form article, generated outline-first and then section by section to fit free-tier token limits | user sources | **S8, implemented** | BlogWriterAgent |
+| `landing_page` | `content.landing_page@1` | Landing-page copy section by section (hero, benefits, proof, FAQ, CTA) | - | **S8, implemented** | LandingPageAgent |
+| `product_description` | `content.product_descriptions@1` | Short, long and bullet descriptions per marketplace style | - | **S8, implemented** | ProductDescriptionAgent; e-commerce |
+| `repurposer` | `content.repurposed@1` | Turns an existing artifact or user text into other formats | user sources | **S8, implemented** | Content repurposing |
 
 ### SEO
 
 | ID | Output artifact | Purpose | Tools | Wave | Replaces / absorbs |
 | --- | --- | --- | --- | --- | --- |
-| `keyword_research` | `seo.keywords@1` | Seed keywords, search intent and topic clusters. Search volumes come only from a user-supplied CSV; otherwise the field is empty and labeled. | user sources | S8 | KeywordResearchAgent; keyword clustering |
-| `seo_content_planner` | `seo.content_plan@1` | Content briefs, outlines, internal-link ideas, an SEO calendar | - | S8 | SEOContentPlannerAgent |
-| `seo_optimizer` | `seo.audit@1` | Deterministic on-page checks computed by code (title and meta length, headings, word count, keyword presence), plus LLM recommendations; input is a URL or text | URL fetch | S8 | SEOAuditAgent, ContentOptimizationAgent |
+| `keyword_research` | `seo.keywords@1` | Seed keywords, search intent and topic clusters. Search volumes come only from a user-supplied CSV; otherwise the field is empty and labeled. | user sources | **S8, implemented** | KeywordResearchAgent; keyword clustering |
+| `seo_content_planner` | `seo.content_plan@1` | Content briefs, outlines, internal-link ideas, an SEO calendar | - | **S8, implemented** | SEOContentPlannerAgent |
+| `seo_optimizer` | `seo.audit@1` | Deterministic on-page checks computed by code (title and meta length, headings, word count, keyword presence), plus LLM recommendations; input is a URL or text | URL fetch | **S8, implemented** | SEOAuditAgent, ContentOptimizationAgent |
 
 ### Creative
 
@@ -152,9 +171,9 @@ the agent lands.
 
 | ID | Output artifact | Purpose | Tools | Wave | Replaces / absorbs |
 | --- | --- | --- | --- | --- | --- |
-| `performance_analyst` | `analytics.performance@1` | Code computes CTR, CVR, CPC, CPA and ROAS from user-supplied CSV; the LLM writes a narrative and recommendations citing only the computed numbers. Disabled when no data is given. | CSV ingestion | S8 | CampaignAnalyticsAgent, PerformanceReviewAgent |
-| `experiment_designer` | `analytics.experiment_plan@1` | Hypotheses, variants, primary metric; code computes the sample size from baseline rate and minimum detectable effect | - | S8 | A/BTestingAgent |
-| `cro_advisor` | `analytics.cro@1` | Conversion recommendations for a landing page (URL or text): a heuristic checklist computed by code, plus LLM reasoning | URL fetch | S8 (lowest priority) | ConversionOptimizationAgent |
+| `performance_analyst` | `analytics.performance@1` | Code computes CTR, CVR, CPC, CPA and ROAS from user-supplied CSV; the LLM writes a narrative and recommendations citing only the computed numbers. Disabled when no data is given. | CSV ingestion | **S8, implemented** | CampaignAnalyticsAgent, PerformanceReviewAgent |
+| `experiment_designer` | `analytics.experiment_plan@1` | Hypotheses, variants, primary metric; code computes the sample size from baseline rate and minimum detectable effect | - | **S8, implemented** | A/BTestingAgent |
+| `cro_advisor` | `analytics.cro@1` | Conversion recommendations for a landing page (URL or text): a heuristic checklist computed by code, plus LLM reasoning | URL fetch | **S8, implemented** | ConversionOptimizationAgent |
 
 ### Quality
 
@@ -163,7 +182,7 @@ the agent lands.
 | `critic` | `quality.review@1` | Rubric scores per criterion, issues and revision instructions. Deterministic checks run first, then the LLM judge. Drives the bounded revision loop. | - | W1 | ContentQualityAgent, CreativeReviewAgent, the master prompt's "Reviewer Agent" |
 | `fact_checker` | `quality.fact_check@1` | Checks claims against the run's evidence store and marks each one supported, unsupported or contradicted | evidence store | S4 | FactCheckingAgent |
 | `brand_consistency` | `quality.brand_check@1` | Checks content against brand guidelines: deterministic term and vocabulary checks, plus an LLM tone check | memory | **S5, implemented** | BrandConsistencyAgent; brand consistency checking |
-| `safety_reviewer` | `quality.safety@1` | Flags regulated or risky claims (health, finance, environmental "green" claims, unproven superlatives, discriminatory targeting). It raises flags only and gives no legal advice. | - | S8 | SafetyReviewAgent |
+| `safety_reviewer` | `quality.safety@1` | Flags regulated or risky claims (health, finance, environmental "green" claims, unproven superlatives, discriminatory targeting). It raises flags only and gives no legal advice. | - | **S8, implemented** | SafetyReviewAgent |
 
 ### Synthesis
 
@@ -217,9 +236,9 @@ constrained and validated.
 | `email-sequence` | `positioning` -> `email_marketing` (reviewed) | S3 |
 | `competitor-report` | `competitor_research` -> `fact_checker` -> `campaign_reporter` (report mode) | S4 |
 | `brand-kit` | `audience_research` -> `brand_strategist`, `positioning` -> reviewed `copywriter` (on brand) -> `brand_consistency` | **S5, implemented** |
-| `seo-content-pack` | `keyword_research` -> `seo_content_planner` -> `blog_writer` -> `seo_optimizer` | S8 |
-| `performance-review` | `performance_analyst` -> `experiment_designer` -> `growth_strategist` | S8 |
-| `ecommerce-campaign`, `b2b-campaign`, `product-launch`, `content-repurpose`, `landing-page` | Variants composed from the agents above | S8 |
+| `seo-content-pack` | `keyword_research` -> `seo_content_planner` -> `blog_writer` -> `seo_optimizer` | **S8, implemented** |
+| `performance-review` | `performance_analyst` -> `experiment_designer` -> `growth_strategist` | **S8, implemented** |
+| `ecommerce-campaign`, `b2b-campaign`, `product-launch`, `content-repurpose`, `landing-page` | Variants composed from the agents above | **S8, implemented** |
 
 The UI "studios" (Research, Strategy, Content, SEO, Creative, Social, Analytics) are
 entry points that pre-select these templates (ADR-018).
@@ -234,27 +253,27 @@ entry points that pre-select these templates (ADR-018).
 | 4 | Brand identity and guidelines | `brand_strategist` | S5 |
 | 5 | Marketing strategy | `marketing_strategist` | W1 |
 | 6 | Product positioning | `positioning` | W1 |
-| 7 | SEO research and content optimisation | `keyword_research`, `seo_optimizer` | S8 |
-| 8 | Keyword clustering | `keyword_research` | S8 |
-| 9 | Blog and article generation | `blog_writer` | S8 |
-| 10 | Landing page copy | `landing_page` | S8 |
+| 7 | SEO research and content optimisation | `keyword_research`, `seo_optimizer` | **S8, implemented** |
+| 8 | Keyword clustering | `keyword_research` | **S8, implemented** |
+| 9 | Blog and article generation | `blog_writer` | **S8, implemented** |
+| 10 | Landing page copy | `landing_page` | **S8, implemented** |
 | 11 | Advertising campaigns | `ad_copy` | W1 |
 | 12 | Social media content | `social_media` | W1 |
 | 13 | Content calendars | `social_media` | W1 |
 | 14 | Email marketing | `email_marketing` | W1 |
-| 15 | Product descriptions | `product_description` | S8 |
-| 16 | E-commerce campaigns | `ecommerce-campaign` template | S8 |
-| 17 | B2B campaigns | `full-campaign` (W1); `b2b-campaign` template | S8 |
-| 18 | Lead magnet concepts | `funnel_strategist` | S8 |
-| 19 | Funnel design | `funnel_strategist` | S8 |
-| 20 | Growth strategies | `growth_strategist` | S8 |
-| 21 | A/B testing ideas | `experiment_designer` | S8 |
+| 15 | Product descriptions | `product_description` | **S8, implemented** |
+| 16 | E-commerce campaigns | `ecommerce-campaign` template | **S8, implemented** |
+| 17 | B2B campaigns | `full-campaign` (W1); `b2b-campaign` template | **S8, implemented** |
+| 18 | Lead magnet concepts | `funnel_strategist` | **S8, implemented** |
+| 19 | Funnel design | `funnel_strategist` | **S8, implemented** |
+| 20 | Growth strategies | `growth_strategist` | **S8, implemented** |
+| 21 | A/B testing ideas | `experiment_designer` | **S8, implemented** |
 | 22 | Creative direction | `art_director` | W1 |
 | 23 | Image-prompt engineering | `art_director` | W1 |
-| 24 | Campaign performance analysis | `performance_analyst` (needs user data) | S8 |
+| 24 | Campaign performance analysis | `performance_analyst` (needs user data) | **S8, implemented** |
 | 25 | Competitor comparison reports | `competitor-report` template | S4 |
 | 26 | Brand consistency checking | `brand_consistency` | S5 |
-| 27 | Content repurposing | `repurposer` | S8 |
+| 27 | Content repurposing | `repurposer` | **S8, implemented** |
 | 28 | Marketing report generation | `campaign_reporter` | W1 |
 | 29 | Custom user-defined workflows | engine + JSON definitions (S2); Workflow Builder UI (S6) | S2 / S6 |
 | 30 | Multi-campaign batch execution | engine batch (v1 `run_batch` kept) | S2 |

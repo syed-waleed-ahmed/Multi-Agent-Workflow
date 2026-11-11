@@ -30,8 +30,17 @@ from ..exports import SIMULATED_NOTICE, artifact_markdown, is_simulated, run_htm
 from ..exports import run_markdown as export_markdown
 from ..models import CampaignBrief
 from ..orchestration.definition import WorkflowDefinition, load_definition
+from ..orchestration.factory import simulated_engine
 from ..orchestration.state import RunRecord, RunStatus, StepStatus
 from ..orchestration.templates import BUILTIN_TEMPLATES, get_template
+from ..services.lab import (
+    BUNDLED_DATASETS,
+    BenchmarkReport,
+    bundled_baseline,
+    compare,
+    load_dataset,
+    run_benchmark,
+)
 from .session import AppSession, build_session
 from .views import (
     EXAMPLE_BRIEF,
@@ -60,6 +69,7 @@ from .views import (
 SESSION_KEY = "campaign_forge_session"
 SELECTED_RUN = "campaign_forge_selected_run"
 CUSTOM_DEFINITION = "campaign_forge_custom_definition"
+LAB_REPORT = "campaign_forge_lab_report"
 _CUSTOM = "custom"
 _NO_BRAND = "(no brand)"
 _STATUS_COLOR = {
@@ -733,21 +743,114 @@ def render_workflow_builder() -> None:
 
 
 def render_evaluation_lab() -> None:
+    session = current_session()
     st.title("Evaluation Lab")
-    st.info(
-        "The interactive Evaluation Lab arrives in Session 8. Until then, the same checks run "
-        "from the command line."
-    )
-    st.code(
-        "python evals/run_eval.py --offline                          # v1 pipeline\n"
-        "python evals/run_eval.py --offline --workflow full-campaign  # agent library\n"
-        "python evals/run_eval.py --workflow full-campaign --only baseline-ecommerce  # live",
-        language="bash",
-    )
     st.write(
-        "Every run is scored by deterministic checks (schema, grounding, labeled claims, "
-        "citations, platform limits, injection canaries) and, for reviewed steps, a critic "
-        "rubric mapped to a 0-1 score by code."
+        "Run a dataset through a workflow. Every output is scored with the deterministic "
+        "checks the critic uses (schema, injection canaries, grounding, labeled claims, "
+        "citations, platform limits). The run is compared with the bundled baseline."
+    )
+    dataset = _choose(
+        "Dataset",
+        list(BUNDLED_DATASETS),
+        key="lab-dataset",
+        format_func=lambda d: {
+            "corpus": "Corpus (10 varied briefs)",
+            "injection": "Injection (8 attacks)",
+        }.get(d, d),
+    )
+    workflow = _choose(
+        "Workflow",
+        list(BUILTIN_TEMPLATES),
+        key="lab-workflow",
+        format_func=lambda t: f"{BUILTIN_TEMPLATES[t].name} ({t})",
+    )
+    if dataset is None or workflow is None:
+        return
+    name, cases = load_dataset(dataset)
+    ids = [c.id for c in cases]
+    live = False
+    if not session.simulated:
+        live = st.toggle(
+            "Run live against your provider (real benchmark; uses quota and takes minutes "
+            "per case)",
+            key="lab-live",
+        )
+    chosen = st.multiselect(
+        "Cases", ids, default=ids[:1] if live else ids, key=f"lab-cases-{dataset}-{live}"
+    )
+    if st.button("Run benchmark", type="primary", key="lab-run", disabled=not chosen):
+        engine = session.engine if live else simulated_engine()
+        selected = [c for c in cases if c.id in set(chosen)]
+        with st.spinner(f"Running {len(selected)} case(s)..."):
+            report = run_benchmark(
+                engine, get_template(workflow), selected, dataset=name, version=__version__
+            )
+        st.session_state[LAB_REPORT] = report.model_dump_json()
+    raw = st.session_state.get(LAB_REPORT)
+    if isinstance(raw, str):
+        _render_benchmark(BenchmarkReport.model_validate_json(raw))
+
+
+def _render_benchmark(report: BenchmarkReport) -> None:
+    s = report.summary
+    if report.mode == "simulated":
+        st.warning(
+            "SIMULATED benchmark: the offline responder answered, so this measures the "
+            "workflow's contracts and checks, not a model's quality."
+        )
+    cols = st.columns(4)
+    cols[0].metric("Passed", f"{s.passed}/{s.cases}")
+    cols[1].metric("Calls per case", f"{s.avg_calls:.1f}")
+    cols[2].metric("Tokens per case", f"{s.avg_tokens:,.0f}")
+    cols[3].metric("Retries", s.retries)
+    st.caption(
+        f"{report.workflow} on {report.dataset}, {report.started_at:%Y-%m-%d %H:%M} UTC; "
+        f"provider {report.provider}; models "
+        + ", ".join(f"{k} {v}" for k, v in report.models.items())
+        + f"; estimated cost ${s.estimated_cost_usd:.2f}"
+    )
+    st.dataframe(
+        [
+            {
+                "case": r.id,
+                "category": r.category,
+                "result": "pass" if r.passed else "FAIL",
+                "seconds": r.duration_s,
+                "calls": r.llm_calls,
+                "tokens": r.tokens,
+                "retries": r.retries,
+                "review": r.review_score,
+                "problem": r.problem(),
+            }
+            for r in report.results
+        ],
+        hide_index=True,
+    )
+    baseline = bundled_baseline(report.workflow.split("@")[0], report.dataset)
+    if baseline is None:
+        st.caption("No bundled baseline exists for this workflow and dataset.")
+    elif len(report.results) != baseline.summary.cases:
+        st.caption("The bundled baseline covers every case; run them all to compare.")
+    else:
+        regressions = compare(report, baseline)
+        if regressions:
+            st.error(
+                "Regressions against the baseline:\n\n" + "\n".join(f"- {r}" for r in regressions)
+            )
+        else:
+            st.success(f"No regressions against the baseline from {baseline.started_at:%Y-%m-%d}.")
+    stem = f"{report.workflow.split('@')[0]}-{report.dataset}"
+    cols = st.columns(2)
+    cols[0].download_button(
+        "Report (JSON)",
+        report.model_dump_json(indent=2),
+        f"{stem}.json",
+        "application/json",
+        key="lab-json",
+    )
+    cols[1].download_button(
+        "Report (Markdown)", report.to_markdown(), f"{stem}.md", "text/markdown", key="lab-md"
     )
 
 

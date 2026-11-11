@@ -45,6 +45,7 @@ This file is an append-only log of the significant decisions behind Campaign For
 | 033 | The Streamlit app: tested view models in the package, thin page files, demo mode in session memory | Accepted | 2026-11-10 |
 | 034 | The API: a service layer, one tenant per key, closed by default, in-process background runs | Accepted | 2026-11-11 |
 | 035 | Cap-aware routing: long answers go to the provider's strong model instead of being truncated | Accepted | 2026-11-11 |
+| 036 | Wave 2 and the Evaluation Lab: code-computed numbers, no invented data, dated benchmarks with baselines | Accepted | 2026-11-11 |
 
 ---
 
@@ -419,3 +420,25 @@ This file is an append-only log of the significant decisions behind Campaign For
 - **Context.** The first passing live `full-campaign` run (2026-11-11) still lost its social calendar. The step asks for up to 1,500 tokens, qwen3.8 allows 1,000 per request, and the answer was truncated even after the concise re-ask. The v1 research step failed the same way. ADR-032 had moved two agents to the strong class by hand; this generalises it.
 - **Decision.** When a route's model comes from the profile's defaults, and the answer may be longer than that model's per-request output cap, the router uses the profile's strong model instead, if its cap allows the length. The switch is logged. The router learns the length from the request (`output_tokens`). The switch stays within the same provider and the same free tier. Explicitly configured models never change: `CF_MODEL`, `CF_PROVIDER_MODELS` and per-agent overrides. The v1 research step now allows 1,500 tokens (D19).
 - **Consequences.** On Groq, the social calendar, email sequence, ads and the v1 research and manager steps run on `openai/gpt-oss-120b`. That spreads a run over two per-model daily quotas. Each artifact's provenance records the model that actually answered.
+
+## ADR-036 Wave 2 and the Evaluation Lab: code-computed numbers, no invented data, dated benchmarks with baselines
+
+- **Context.** Session 8 adds the remaining catalog agents. Many of them deal in numbers (scores, sample sizes, marketing metrics, search volumes) or in claims a model could invent (testimonials, statistics, flags). It also adds the Evaluation Lab, whose results must never be fabricated or estimated after the fact.
+- **Decision.**
+  - **Numbers by code.** The model rates or proposes, and code computes, as ADR-011 already requires.
+  - **No invented data.**
+    - Testimonials and statistics on a landing page must be placeholders.
+    - Search volumes come only from a user CSV, and the contract strips any volume a model writes.
+    - Performance metrics come only from user data, and the analyst refuses without it.
+    - Baselines are assumptions unless code takes them from measured rates.
+    - Safety flags must quote real content.
+  - **Context-aware re-validation.** Each "code decides" rule takes its authority from a validation-context key that the agent always passes. Re-reading a stored artifact without that context keeps the values code set; a model can never set them.
+  - **Evaluation Lab.**
+    - `services/lab.py` runs a dataset through a workflow with the same deterministic checks as the critic.
+    - Every report records its date, mode (simulated or live), provider and models.
+    - Regressions compare only stable metrics (pass rate, calls and tokens per case, newly failing cases) with a stored baseline.
+    - The datasets and offline baselines ship with the package; CI checks three of them.
+    - `docs/BENCHMARKS.md` lists only real live runs.
+- **Consequences.**
+  - Agents with user-data inputs say plainly when the data is missing.
+  - Changing a template or an agent's prompt can trip a baseline in CI. The fix is to rerun `campaign-forge bench ... --offline --save-baseline` deliberately and commit the new baseline.

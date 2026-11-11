@@ -30,6 +30,14 @@ from ..agents.schemas import (
     REPORT_KIND,
     SOCIAL_KIND,
 )
+from ..agents.schemas_wave2 import (
+    ARTICLE_KIND,
+    FUNNEL_KIND,
+    GROWTH_KIND,
+    LANDING_KIND,
+    PRODUCT_COPY_KIND,
+    REPURPOSED_KIND,
+)
 from ..domain.artifacts import Artifact
 from ..domain.brand import BRAND_KIND
 from ..domain.provenance import unknown_evidence_ids
@@ -61,6 +69,12 @@ RUBRICS: Mapping[str, tuple[str, ...]] = {
     EMAIL_KIND: ("on_brief", "sequence_logic", "persuasiveness", "tone_match"),
     REPORT_KIND: ("on_brief", "completeness", "actionability", "clarity"),
     BRAND_KIND: ("on_brief", "distinctiveness", "usability", "consistency"),
+    LANDING_KIND: ("on_brief", "clarity", "persuasiveness", "tone_match"),
+    PRODUCT_COPY_KIND: ("on_brief", "clarity", "persuasiveness", "platform_fit"),
+    REPURPOSED_KIND: ("on_brief", "platform_fit", "variety", "tone_match"),
+    ARTICLE_KIND: ("on_brief", "clarity", "depth", "structure"),
+    FUNNEL_KIND: ("on_brief", "completeness", "actionability"),
+    GROWTH_KIND: ("on_brief", "actionability", "variety"),
 }
 
 #: Sections every campaign report must contain (heading keywords, case-insensitive).

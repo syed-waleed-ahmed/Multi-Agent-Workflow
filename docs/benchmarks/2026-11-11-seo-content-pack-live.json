@@ -1,0 +1,117 @@
+{
+  "workflow": "seo-content-pack@1.0.0",
+  "dataset": "corpus",
+  "mode": "live",
+  "provider": "groq",
+  "models": {
+    "small": "qwen/qwen3.8-27b",
+    "standard": "qwen/qwen3.8-27b",
+    "strong": "openai/gpt-oss-120b"
+  },
+  "version": "2.0.0b1",
+  "started_at": "2026-11-11T14:19:15.025118Z",
+  "finished_at": "2026-11-11T14:23:01.532608Z",
+  "summary": {
+    "cases": 1,
+    "passed": 1,
+    "success_rate": 1.0,
+    "failure_rate": 0.0,
+    "completion_rate": 1.0,
+    "avg_duration_s": 226.51,
+    "total_calls": 11,
+    "avg_calls": 11.0,
+    "total_tokens": 11792,
+    "avg_tokens": 11792.0,
+    "retries": 0,
+    "avg_review_score": null,
+    "warnings": 0,
+    "estimated_cost_usd": 0.0
+  },
+  "results": [
+    {
+      "id": "baseline-ecommerce",
+      "category": "normal",
+      "status": "completed",
+      "completed": true,
+      "passed": true,
+      "duration_s": 226.51,
+      "llm_calls": 11,
+      "tokens": 11792,
+      "retries": 0,
+      "review_score": null,
+      "models_used": [
+        "openai/gpt-oss-120b",
+        "qwen/qwen3.8-27b"
+      ],
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "critical": true,
+          "detail": "run completed:"
+        },
+        {
+          "name": "article.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "article.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "audit.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "keywords.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "plan.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.schema",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        },
+        {
+          "name": "safety.no_injection_echo",
+          "passed": true,
+          "critical": true,
+          "detail": ""
+        }
+      ],
+      "error": null
+    }
+  ]
+}

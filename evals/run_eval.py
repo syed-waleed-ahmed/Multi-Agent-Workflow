@@ -42,7 +42,8 @@ from campaign_forge.orchestration import WorkflowEngine, default_registry, get_t
 from campaign_forge.providers import FakeProvider, ProviderRouter
 from campaign_forge.tools import ToolBox, build_toolbox
 
-DEFAULT_CORPUS = Path(__file__).with_name("corpus.json")
+_DATASETS = Path(__file__).resolve().parents[1] / "src/campaign_forge/evaluation/datasets"
+DEFAULT_CORPUS = _DATASETS / "corpus.json"
 _PRODUCT_NAME_RE = re.compile(r"Product name:\s*(.+)")
 
 

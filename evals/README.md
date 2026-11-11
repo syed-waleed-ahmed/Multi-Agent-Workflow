@@ -4,7 +4,7 @@ The unit-test suite (`tests/`) is fully mocked — it proves the *plumbing* work
 but never asks a real model whether a weird, huge, non-English, or adversarial
 brief actually produces a usable campaign. This directory closes that gap.
 
-- **`corpus.json`** — a deliberately diverse set of briefs: normal cases,
+- **`corpus.json`** (now in `src/campaign_forge/evaluation/datasets/`, shipped with the package) — a deliberately diverse set of briefs: normal cases,
   minimal input, non-Latin and emoji text, an oversized description, a long
   channel list, a prompt-injection attempt, and an ambiguous brief. Each entry
   has an `id`, a `category`, and a `notes` field explaining what it stresses.
@@ -40,4 +40,4 @@ python evals/run_eval.py --workflow full-campaign --limit 2   # live, small and 
 
 The process exits non-zero when the pass rate drops below `--min-pass-rate`
 (default `0.8`), so it can run as a nightly or pre-release gate. Add new briefs
-to `corpus.json` whenever you find an input shape the pipeline should handle.
+to the corpus whenever you find an input shape the pipeline should handle.

@@ -80,21 +80,30 @@ STUDIOS: tuple[Studio, ...] = (
     Studio(
         "strategy",
         "Strategy Studio",
-        "A brand profile and positioning, or a full plan from research to channel mix.",
-        ("brand-kit", "full-campaign"),
+        "A brand profile and positioning, a launch plan, or a full plan from research to "
+        "channel mix.",
+        ("brand-kit", "product-launch", "b2b-campaign", "full-campaign"),
     ),
     Studio(
         "content",
         "Content Studio",
-        "Reviewed copy and channel content: ads, email sequences, or the full set.",
-        ("ad-pack", "email-sequence", "full-campaign"),
+        "Reviewed copy and channel content: ads, landing pages, product pages, email "
+        "sequences, repurposed content, or the full set.",
+        (
+            "ad-pack",
+            "landing-page",
+            "ecommerce-campaign",
+            "email-sequence",
+            "content-repurpose",
+            "full-campaign",
+        ),
     ),
     Studio(
         "seo",
         "SEO Studio",
-        "Keyword research, content plans and on-page optimisation.",
-        (),
-        planned="The SEO agents arrive in Session 8 (agent library wave 2).",
+        "Keyword clusters (volumes only from your data), a content plan, a long-form "
+        "article and an on-page audit.",
+        ("seo-content-pack",),
     ),
     Studio(
         "creative",
@@ -111,9 +120,9 @@ STUDIOS: tuple[Studio, ...] = (
     Studio(
         "analytics",
         "Analytics Studio",
-        "Performance analysis, experiment design and growth recommendations.",
-        (),
-        planned="The analytics agents arrive in Session 8 (agent library wave 2).",
+        "Metrics computed from your campaign CSV, A/B tests with sample sizes, and a growth "
+        "backlog ranked by ICE.",
+        ("performance-review",),
     ),
 )
 STUDIOS_BY_ID: Mapping[str, Studio] = {s.id: s for s in STUDIOS}
