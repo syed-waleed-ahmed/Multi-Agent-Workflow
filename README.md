@@ -572,7 +572,7 @@ Possible next steps. These are not commitments:
 
 ## 19. Contributing
 
-Contributions are welcome. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md): setup, the quality gates, the ground rules (free to run, honest numbers, no secrets), and how to add an agent or a workflow. Issues use templates for bugs and features. Everyone follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. Start with [`CONTRIBUTING.md`](CONTRIBUTING.md): setup, the quality gates, the ground rules (free to run, honest numbers, no secrets), and how to add an agent or a workflow. Issues use templates for bugs and features. Everyone follows the [Code of Conduct](CODE_OF_CONDUCT.md). Accessibility support and known barriers are in [`ACCESSIBILITY.md`](ACCESSIBILITY.md).
 
 ## 20. License
 
