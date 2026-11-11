@@ -1,10 +1,15 @@
 # Build Status
 
 - **Last updated:** 2026-11-11, end of Session 10
-- **Version:** **`2.0.1`**, a patch release with one fix: the Run Inspector's picker label. `2.0.0` is the release commit `74dd7f2`. CI is green on Python 3.10-3.13, the Docker job and the dependency audit.
+- **Version:** **`2.0.1`**, tagged `v2.0.1` at `0c8a94b`: a patch release with one fix, the Run Inspector's picker label. `2.0.0` is the release commit `74dd7f2`. CI is green on Python 3.10-3.13, the Docker job and the dependency audit.
   - **Tag `v2.0.0`** at `74dd7f2`, with a published GitHub release marked as the latest.
   - **Earlier releases:** `v2.0.0rc1` (`4c8b726`) is published as a pre-release. `v2.0.0b1` (`94af144`) is published as a pre-release. Tags `v1.0.0` (`69e5814`) and `v1.1.0` (`808e7d5`) were added on 2026-11-11, so the changelog's links to them resolve.
-  - **Repository page:** releases are shown on the home page, five topics were added (streamlit, fastapi, pydantic, llm-evaluation, workflow-engine), and the empty wiki is turned off.
+  - **Repository page:**
+    - releases are shown on the home page;
+    - five topics were added (streamlit, fastapi, pydantic, llm-evaluation, workflow-engine);
+    - the empty wiki is turned off;
+    - the social preview is `docs/images/social-preview.png`;
+    - every item of GitHub's community-standards checklist is met, plus `ACCESSIBILITY.md`.
 - **Current phase:** The full agent catalog (28 agents, 14 templates), memory, the web app, the API and the Evaluation Lab are implemented and pass every offline gate. **The live acceptance runs passed on 2026-11-11** (v1 2/2, `full-campaign` 1/1 with no warnings). The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). Session 9 added live mode and security hardening (ADR-037). Session 10 completed the presentation, the final live smoke test and the 2.0.0 release. **All planned sessions are done.** The definition-of-done audit is below: **every criterion is met**, including live runs on the public app with the owner's key.
 
 ## Sessions

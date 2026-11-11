@@ -806,6 +806,21 @@ See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
   - **Fix:** the picker's key now changes with its labels; the selection is kept.
   - **Verified:** an app test checks the picker is rebuilt, and the second live run on the public app showed "completed".
 
+### Closing pass (owner input: "fix anything thats broken, also fix the git repo page, tags, about and all, so then I can close the codebase")
+
+- **Release `2.0.1`:**
+  - the Run Inspector fix;
+  - package metadata links to the changelog, the docs and the demo;
+  - version, changelog and OpenAPI schema updated; tagged `v2.0.1` at `0c8a94b`.
+
+  The GitHub release page was prepared in the browser for the owner's click; the session's permission policy blocked publishing it.
+- **Public demo:** rebooted to 2.0.1. All 16 pages were opened in the browser; each rendered with no error.
+- **Repository page:**
+  - a social preview card made from a real demo screenshot (`docs/images/social-preview.png`);
+  - `ACCESSIBILITY.md`, the optional community file GitHub suggests;
+  - every item of the community-standards checklist is met.
+- **Repository contents:** no build output, caches, databases or secrets are tracked (219 files).
+
 ### Blocked, and left to the owner
 
 The session's permission policy blocks tags, GitHub releases and repository-settings changes. These were prepared in the browser for the owner's click:
