@@ -25,7 +25,8 @@ import re
 import sqlite3
 import tempfile
 import threading
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Protocol
@@ -84,6 +85,28 @@ class InMemoryRunStore:
                 raise RunNotFoundError(f"Run {run_id!r} not found.")
 
 
+#: Attempts to replace a checkpoint file (D20).
+REPLACE_ATTEMPTS = 8
+
+
+def _replace(source: str, target: Path, *, sleep: Callable[[float], None] = time.sleep) -> None:
+    """``os.replace`` that waits out a brief lock on Windows (D20).
+
+    A virus scanner or the search indexer can hold a freshly written file open for
+    a moment, and Windows then refuses the replace with "Access is denied". Measured
+    on a live benchmark run, 2026-11-11. The replace stays atomic: it is retried,
+    never emulated.
+    """
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt == REPLACE_ATTEMPTS - 1:
+                raise
+            sleep(0.05 * (attempt + 1))
+
+
 def _safe_component(value: str) -> str:
     """A filesystem-safe, collision-resistant directory name for a scope id."""
     slug = _UNSAFE_RE.sub("_", value)[:40] or "_"
@@ -114,7 +137,7 @@ class JsonFileRunStore:
             try:
                 with os.fdopen(fd, "w", encoding="utf-8") as handle:
                     handle.write(payload)
-                os.replace(tmp, path)
+                _replace(tmp, path)
             except BaseException:
                 Path(tmp).unlink(missing_ok=True)
                 raise

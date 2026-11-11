@@ -407,3 +407,35 @@ def test_llm_planner_falls_back_on_provider_errors() -> None:
     assert plan.planner == "rules (fallback)"
     assert "bad key" in plan.rationale[-1]
     assert Text(text="x").text == "x"
+
+
+def test_file_store_waits_out_a_brief_windows_file_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D20: a scanner or indexer briefly holding the checkpoint must not fail the run."""
+    import os
+
+    from campaign_forge.orchestration import store as store_module
+
+    real_replace = os.replace
+    calls = {"n": 0}
+
+    def flaky_replace(src: str, dst: Any) -> None:
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            raise PermissionError("[WinError 5] Access is denied")
+        real_replace(src, dst)
+
+    monkeypatch.setattr(store_module.os, "replace", flaky_replace)
+    monkeypatch.setattr(store_module.time, "sleep", lambda _: None)
+    store = JsonFileRunStore(tmp_path)
+    store.save(_record())
+    assert calls["n"] == 3 and store.load("run-test", Scope.local()).run_id == "run-test"
+
+    def locked(src: str, dst: Any) -> None:
+        raise PermissionError("[WinError 5] Access is denied")
+
+    monkeypatch.setattr(store_module.os, "replace", locked)
+    with pytest.raises(PermissionError):
+        store.save(_record())
+    assert not list(tmp_path.rglob(".tmp-*"))  # the temporary file is cleaned up
