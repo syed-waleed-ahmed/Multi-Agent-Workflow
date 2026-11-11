@@ -59,6 +59,9 @@ dev = [
 Homepage = "https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow"
 Repository = "https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow"
 Issues = "https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/issues"
+Changelog = "https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/tree/main/docs"
+Demo = "https://campaign-forge.streamlit.app/"
 
 [project.scripts]
 campaign-forge = "campaign_forge.cli:main"

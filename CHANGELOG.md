@@ -6,6 +6,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-11
+
+### Fixed
+
+- **The Run Inspector's run picker kept saying "running" after a background run finished.** Background runs are the app's live and local modes. Streamlit identifies a keyed select box by its key alone, and the browser kept the labels it first received. The picker is now rebuilt when a label changes, and the selection is kept. Found and verified on the public demo.
+
+### Documentation
+
+- Live runs on the public app with the owner's key are recorded in `docs/BENCHMARKS.md`, which closes the last item of the definition-of-done audit.
+- The README says the public demo offers a few live runs a day on its own key.
+- The package metadata links the changelog, the docs and the demo.
+
 ## [2.0.0] - 2026-11-11
 
 Campaign Forge 2.0: a multi-agent marketing platform on free tiers.
@@ -246,7 +258,8 @@ non-English input, and add a measurement layer for it.
   which all slugify to the same fallback): the previous `save()` overwrote the
   earlier file. Output files are now guaranteed distinct.
 
-[Unreleased]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/compare/v2.0.1...HEAD
+[2.0.1]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.1
 [2.0.0]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0
 [2.0.0rc1]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0rc1
 [2.0.0b1]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0b1

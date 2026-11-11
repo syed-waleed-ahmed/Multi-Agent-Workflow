@@ -1,7 +1,7 @@
 # Build Status
 
 - **Last updated:** 2026-11-11, end of Session 10
-- **Version:** **`2.0.0`**, committed on `main` as `74dd7f2` with CI green: Python 3.10-3.13, the Docker job and the dependency audit.
+- **Version:** **`2.0.1`**, a patch release with one fix: the Run Inspector's picker label. `2.0.0` is the release commit `74dd7f2`. CI is green on Python 3.10-3.13, the Docker job and the dependency audit.
   - **Tag `v2.0.0`** at `74dd7f2`, with a published GitHub release marked as the latest.
   - **Earlier releases:** `v2.0.0rc1` (`4c8b726`) is published as a pre-release. `v2.0.0b1` (`94af144`) is published as a pre-release. Tags `v1.0.0` (`69e5814`) and `v1.1.0` (`808e7d5`) were added on 2026-11-11, so the changelog's links to them resolve.
   - **Repository page:** releases are shown on the home page, five topics were added (streamlit, fastapi, pydantic, llm-evaluation, workflow-engine), and the empty wiki is turned off.
