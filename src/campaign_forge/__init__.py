@@ -62,7 +62,7 @@ from .providers import (
 )
 from .workflow import BatchItemResult, CampaignWorkflow
 
-__version__ = "2.0.0rc1"
+__version__ = "2.0.0"
 
 __all__ = [
     "AgentCategory",

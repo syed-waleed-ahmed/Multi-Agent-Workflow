@@ -6,8 +6,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-11
+
+Campaign Forge 2.0: a multi-agent marketing platform on free tiers.
+- 28 agents and 14 workflow templates on a checkpointed DAG engine, with a planner, a critic, memory and evidence-backed research.
+- A web app with a public demo and a capped live mode, an HTTP API, and an Evaluation Lab.
+
+The v1 CLI and Python API are unchanged. The complete record of the build is in `docs/BUILD_STATUS.md` and `docs/SESSION_LOG.md`.
+
 ### Added
 
+- **The planner in the CLI.**
+  - `campaign-forge plan --brief brief.json` shows which workflow the planner chooses, which optional steps it skips, and why.
+  - `campaign-forge execute auto --brief brief.json` runs that plan.
+  - The model planner can only choose among registered templates and optional steps, and falls back to deterministic rules (`--rules`) on any problem.
+- **Presentation and community files** (Session 10):
+  - a README organised around the project's 20 required sections, with Mermaid diagrams;
+  - `docs/EXAMPLES.md`: a live campaign brief from Groq's free tier, a simulated one, and screenshots of the public demo;
+  - `docs/DEPLOYMENT.md`;
+  - issue and pull-request templates, `CODE_OF_CONDUCT.md`, and a root `SECURITY.md` for reporting vulnerabilities.
 - **Live mode in the public app (Session 9, ADR-037).** Real model calls on Groq, with a visitor's own key or, when the owner opts in, the deployment's key.
   - Each run is capped at 25 calls, 30,000 tokens and 20 minutes, and at most two live runs execute at once.
   - Runs on the deployment's key are also limited to 3 per session and 5 per day.
@@ -23,6 +40,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - **A key inside an unexpected error could reach the run record.** Provider errors were already redacted, but other exceptions' text was stored as it was. The engine, the run service and the Evaluation Lab now redact every error message they record. A live-mode test found this.
 - **Logs in the web app.** The app now configures the package logger, so log lines are redacted there too.
+- **D21: the CLI crashed on characters the console cannot encode.** On Windows with output redirected (cp1252), a model's non-breaking hyphen in the final brief raised `UnicodeEncodeError` after the run had completed, and the command exited 1. The CLI now replaces such characters in the terminal copy only; the run record keeps the exact text. Found by the Session 10 live smoke test.
 
 ## [2.0.0rc1] - 2026-11-11
 
@@ -228,7 +246,8 @@ non-English input, and add a measurement layer for it.
   which all slugify to the same fallback): the previous `save()` overwrote the
   earlier file. Output files are now guaranteed distinct.
 
-[Unreleased]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/compare/v2.0.0rc1...HEAD
+[Unreleased]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0
 [2.0.0rc1]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0rc1
 [2.0.0b1]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0b1
 [1.1.0]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v1.1.0
