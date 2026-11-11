@@ -2,8 +2,9 @@
 
 - **Last updated:** 2026-11-11, end of Session 10
 - **Version:** **`2.0.0`**, committed on `main` as `74dd7f2` with CI green: Python 3.10-3.13, the Docker job and the dependency audit.
-  - **Tag `v2.0.0` and the GitHub release:** not created yet. The session's permission policy blocks tags and releases, so they are prepared in the browser for the owner's click (see "Waiting on the owner").
-  - **Earlier pre-releases:** tagged `v2.0.0rc1` (`4c8b726`) and `v2.0.0b1` (`94af144`).
+  - **Tag `v2.0.0`** at `74dd7f2`, with a published GitHub release marked as the latest.
+  - **Earlier releases:** `v2.0.0rc1` (`4c8b726`) is published as a pre-release. The `v2.0.0b1` (`94af144`) page is prepared but waits for the owner's publish click. Tags `v1.0.0` (`69e5814`) and `v1.1.0` (`808e7d5`) were added on 2026-11-11, so the changelog's links to them resolve.
+  - **Repository page:** releases are shown on the home page, five topics were added (streamlit, fastapi, pydantic, llm-evaluation, workflow-engine), and the empty wiki is turned off.
 - **Current phase:** The full agent catalog (28 agents, 14 templates), memory, the web app, the API and the Evaluation Lab are implemented and pass every offline gate. **The live acceptance runs passed on 2026-11-11** (v1 2/2, `full-campaign` 1/1 with no warnings). The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). Session 9 added live mode and security hardening (ADR-037). Session 10 completed the presentation, the final live smoke test and the 2.0.0 release. **All planned sessions are done.** The definition-of-done audit is below; its one open item needs the owner's Streamlit secrets.
 
 ## Sessions
@@ -20,7 +21,7 @@
 | S7 | FastAPI service | **Done** (Docker verified in CI) |
 | S8 | Agent library wave 2 and Evaluation Lab | **Done**: 13 agents, 7 templates, Lab, benchmarks from real runs ([BENCHMARKS.md](BENCHMARKS.md)) |
 | S9 | Security hardening and live mode | **Done** (ADR-037). A live run on the owner's key passed locally. On the public app it waits for the owner's secrets. |
-| S10 | Release and presentation | **Done**: README, gallery, deployment docs and community files; final live smoke test; planner in the CLI; release `2.0.0` (tag and GitHub release await the owner's click) |
+| S10 | Release and presentation | **Done**: README, gallery, deployment docs and community files; final live smoke test; planner in the CLI; release `2.0.0`, tagged and published |
 
 ## Quality gates (measured 2026-11-11, end of Session 10, Python 3.10, streamlit 1.65.0; `mypy` also on Python 3.11 with streamlit 1.67.0)
 
@@ -113,7 +114,7 @@ A run uses about 27,000 tokens of the 200,000-token daily quota. The v1 harness 
 
 ## Waiting on the owner
 
-- **Publish the prepared release pages** (`v2.0.0`, which also creates the tag, and the pre-releases `v2.0.0rc1` and `v2.0.0b1`), and the repository's About description and website.
+- **Publish the prepared `v2.0.0b1` release page.** The form is filled and marked as a pre-release; the assistant's publish click was blocked by the permission policy.
 - **Optional:** turn on private vulnerability reporting (Settings, then Code security). [`SECURITY.md`](../SECURITY.md) works either way.
 - **Offer the demo's key on the public app (S9 acceptance on the deployed app).**
   1. In Streamlit Community Cloud, open the app, then Settings, then Secrets.

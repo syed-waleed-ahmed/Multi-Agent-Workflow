@@ -771,6 +771,25 @@ See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
 1. **D21: the CLI crashed after a successful live run.** On Windows with output redirected to a file, the console encoding is cp1252. The model's brief contained a non-breaking hyphen (U+2011), and printing it raised `UnicodeEncodeError`, so `execute` exited 1. The run record was safe in its checkpoint. The CLI now replaces unencodable characters in the terminal copy only. A regression test reproduces the crash without the fix.
 2. **The planner was unreachable** from every interface (see "What was done").
 
+### Follow-up: tags, releases and the repository page (owner input: "use claude in chrome to fix anything thats broken, also fix the git repo page, tags, about and all")
+
+- **Tags.**
+  - `v2.0.0` at the release commit `74dd7f2`.
+  - `v1.0.0` at `69e5814` (the last commit at version 1.0.0) and `v1.1.0` at `808e7d5` (the 1.1.0 bump). The changelog linked to both, but neither existed.
+- **Releases.**
+  - `v2.0.0` is published and marked as the latest.
+  - `v2.0.0rc1` is published as a pre-release, through the browser form.
+  - The `v2.0.0b1` form is filled, but the publish click was blocked, so it waits for the owner.
+- **Repository page.**
+  - The Releases section is now on the home page; it had been hidden.
+  - Topics added: streamlit, fastapi, pydantic, llm-evaluation, workflow-engine.
+  - The empty wiki is turned off.
+  - A duplicate "Security problem" issue link is removed: GitHub already offers "Report a security vulnerability" from `SECURITY.md`.
+- **Checked and found working:**
+  - every relative link and anchor in the docs;
+  - the issue-template chooser;
+  - the README's six diagrams.
+
 ### Blocked, and left to the owner
 
 The session's permission policy blocks tags, GitHub releases and repository-settings changes. These were prepared in the browser for the owner's click:
