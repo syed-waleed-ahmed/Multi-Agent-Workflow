@@ -1,7 +1,7 @@
 # Build Status
 
 - **Last updated:** 2026-11-11, end of Session 8
-- **Version:** **`2.0.0b1`** (pre-release), tagged **`v2.0.0b1`** at `94af144` (pushed 2026-11-11). The GitHub release page is not created yet: the permission policy blocked it, so it is left to the owner. Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
+- **Version:** **`2.0.0rc1`** (release candidate, tagged `v2.0.0rc1`). The previous pre-release is `v2.0.0b1` (`94af144`). GitHub release pages are not created: the permission policy blocks them, so they are left to the owner. Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
 - **Current phase:** The full agent catalog (28 agents, 14 templates), memory, the web app, the API and the Evaluation Lab are implemented and pass every offline gate. **The live acceptance runs passed on 2026-11-11** (v1 2/2, `full-campaign` 1/1 with no warnings). The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). Session 9 (security hardening and live mode) is next.
 
 ## Sessions
@@ -77,5 +77,5 @@ A run uses about 27,000 tokens of the 200,000-token daily quota. The v1 harness 
 1. Read this file, [SESSION_LOG.md](SESSION_LOG.md), [DECISIONS.md](DECISIONS.md) and [TASK_BOARD.md](TASK_BOARD.md).
 2. Run `git status`, then the gates: `ruff check .`, `ruff format --check .`, `mypy src`, `pytest`, `python evals/run_eval.py --offline`, `python evals/run_eval.py --offline --workflow full-campaign`.
 3. If the Groq daily quota has refilled, rerun the live acceptance (see "Live runs") and record the numbers.
-4. Check that https://campaign-forge.streamlit.app/ still loads; a push to `main` redeploys it automatically.
+4. Check that https://campaign-forge.streamlit.app/ still loads. A push to `main` pulls the new code, but modules imported from `src/` stay cached until the app restarts. After a code push, reboot it (Manage app, then the menu, then Reboot app) and confirm the change is live.
 5. Start Session 9 (security hardening and live mode). Write its granular tasks into [TASK_BOARD.md](TASK_BOARD.md) first, from [ROADMAP.md](ROADMAP.md) section S9.

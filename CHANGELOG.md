@@ -6,6 +6,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.0rc1] - 2026-11-11
+
+The 2.0 release candidate: the full agent catalog (28 agents, 14 templates) and the Evaluation Lab, with live benchmarks on Groq's free tier recorded in `docs/BENCHMARKS.md`.
+
 ### Added
 
 - **Agent library, wave 2 (Session 8, ADR-036).** The 13 new agents, by group:
@@ -149,6 +153,7 @@ Live acceptance on Groq's free tier passed on 2026-11-11: the v1 pipeline 2/2, a
 
 ### Fixed
 
+- **D20: Windows file lock.** Saving a run on Windows could fail when another process briefly held the checkpoint file. The atomic replace now waits it out.
 - **D19: long answers were truncated on Groq's free tier.** A live run lost its social calendar, and the v1 research answer overflowed. Both needed more than qwen3.8's 1,000 tokens per request. Routing is now cap-aware (ADR-035).
 - **D16: parallel requests starved each other on Groq's free tier.** Under the 1,000 output-token/minute cap, two requests in flight exhausted their retries and paused the run. Groq requests are now serialised (ADR-032).
 - **D17: the v1 final brief overflowed the output cap.** It needs more than 1,000 tokens even when asked to be concise. The v1 manager (2,000 tokens) and the campaign reporter now use the `strong` model class, `openai/gpt-oss-120b` on Groq, which returned 2,500 tokens in one request in a live probe.
@@ -205,7 +210,8 @@ non-English input, and add a measurement layer for it.
   which all slugify to the same fallback): the previous `save()` overwrote the
   earlier file. Output files are now guaranteed distinct.
 
-[Unreleased]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/compare/v2.0.0b1...HEAD
+[Unreleased]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/compare/v2.0.0rc1...HEAD
+[2.0.0rc1]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0rc1
 [2.0.0b1]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v2.0.0b1
 [1.1.0]: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/releases/tag/v1.1.0
 
