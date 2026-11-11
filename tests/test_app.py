@@ -246,8 +246,7 @@ def test_background_runs_show_live_progress(app: AppTest, tmp_path: Path) -> Non
     _ok(app.switch_page("views/inspector.py").run())
     assert "Running" in app.info[0].value
     gate.set()
-    for thread in list(session._threads.values()):  # noqa: SLF001 - test-only join
-        thread.join(timeout=30)
+    assert session.service.wait(30)
     _ok(app.run())
     assert "completed" in _texts(app)
 

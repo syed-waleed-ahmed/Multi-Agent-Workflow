@@ -17,7 +17,6 @@ from pydantic import ValidationError
 
 from .. import __version__
 from ..config import SECRET_FIELDS, Settings
-from ..core.budget import BudgetLimits
 from ..core.registry import AgentRegistry
 from ..domain.artifacts import Artifact
 from ..domain.brand import BrandProfile
@@ -29,6 +28,7 @@ from ..orchestration.state import RunRecord, StepState
 from ..orchestration.templates import BUILTIN_TEMPLATES
 from ..providers.base import ModelClass
 from ..providers.router import ProviderRouter
+from ..services.plans import customize as customize
 
 #: Node fill colours by step status (readable on light and dark themes).
 STATUS_COLORS: Mapping[str, str] = {
@@ -335,25 +335,6 @@ def template_ids(studio: Studio | None = None) -> list[str]:
     if studio is not None:
         return [t for t in studio.templates if t in BUILTIN_TEMPLATES]
     return list(BUILTIN_TEMPLATES)
-
-
-def customize(
-    definition: WorkflowDefinition, *, skip: Iterable[str] = (), limits: BudgetLimits | None = None
-) -> WorkflowDefinition:
-    """The definition with some optional steps disabled and, optionally, new limits.
-
-    Raises:
-        CampaignForgeError: if a step to skip is not optional.
-    """
-    skipped = set(skip)
-    optional = {s.id for s in definition.steps if s.optional}
-    refused = sorted(skipped - optional)
-    if refused:
-        raise CampaignForgeError(f"Only optional steps can be skipped: {', '.join(refused)}.")
-    customised = definition.with_disabled(skipped) if skipped else definition
-    if limits is not None:
-        customised = customised.model_copy(update={"limits": limits})
-    return customised
 
 
 def errors_of(exc: ValidationError) -> list[str]:

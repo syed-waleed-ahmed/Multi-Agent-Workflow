@@ -17,9 +17,7 @@ call goes through it with the session's scope.
 
 from __future__ import annotations
 
-import contextlib
-import threading
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -30,16 +28,15 @@ from ..domain.artifacts import Artifact
 from ..domain.brand import BrandProfile
 from ..domain.scope import Scope
 from ..evaluation.offline import OfflineSearch, offline_responder
-from ..exceptions import CampaignForgeError, MemoryStoreError, RunNotFoundError
 from ..memory.sqlite import IN_MEMORY, SqliteMemoryStore
 from ..orchestration.definition import WorkflowDefinition
-from ..orchestration.engine import RunResult, WorkflowEngine, new_run_id
-from ..orchestration.history import remember_run
+from ..orchestration.engine import WorkflowEngine
 from ..orchestration.state import RunRecord
 from ..orchestration.store import InMemoryRunStore
 from ..orchestration.templates import default_registry
 from ..providers.fake import FakeProvider
 from ..providers.router import ProviderRouter
+from ..services.runs import RunService
 from ..tools import ToolBox
 
 UIMode = Literal["demo", "local"]
@@ -64,16 +61,23 @@ SAMPLE_BRAND = BrandProfile(
 
 @dataclass
 class AppSession:
-    """Everything one browser session can see and do."""
+    """Everything one browser session can see and do. Run control is a RunService."""
 
     mode: UIMode
     settings: Settings
     engine: WorkflowEngine
     memory: SqliteMemoryStore
     scope: Scope = field(default_factory=Scope.local)
-    _threads: dict[str, threading.Thread] = field(default_factory=dict, repr=False)
-    _errors: dict[str, str] = field(default_factory=dict, repr=False)
-    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    service: RunService = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        # Demo runs finish in a moment; local runs may wait out rate limits for minutes.
+        self.service = RunService(
+            self.engine,
+            self.memory,
+            background=self.mode == "local",
+            history=self.settings.memory_history,
+        )
 
     @property
     def simulated(self) -> bool:
@@ -81,12 +85,8 @@ class AppSession:
 
     @property
     def background(self) -> bool:
-        """Demo runs finish in a moment; local runs may wait out rate limits for minutes."""
-        return self.mode == "local"
+        return self.service.background
 
-    # ------------------------------------------------------------------ #
-    # Runs
-    # ------------------------------------------------------------------ #
     def start(
         self, definition: WorkflowDefinition, inputs: Mapping[str, BaseModel | Artifact]
     ) -> str:
@@ -96,85 +96,31 @@ class AppSession:
             WorkflowValidationError: if the definition or inputs are invalid. No run
                 is created in that case.
         """
-        self.engine.validate(definition)
-        run_id = new_run_id()
-
-        def work() -> RunResult:
-            return self.engine.start(definition, inputs, scope=self.scope, run_id=run_id)
-
-        if self.background:
-            self._launch(run_id, work)
-        else:
-            self._remember(work().record)
-        return run_id
+        return self.service.start(definition, inputs, scope=self.scope)
 
     def resume(self, run_id: str) -> None:
-        self._launch_or_run(run_id, lambda: self.engine.resume(run_id, scope=self.scope))
+        self.service.resume(run_id, scope=self.scope)
 
     def approve(self, run_id: str, step_id: str, *, approved: bool, comment: str = "") -> None:
-        self._launch_or_run(
-            run_id,
-            lambda: self.engine.approve(
-                run_id, step_id, scope=self.scope, approved=approved, comment=comment or None
-            ),
-        )
+        self.service.approve(run_id, step_id, scope=self.scope, approved=approved, comment=comment)
 
     def cancel(self, run_id: str) -> RunRecord:
-        return self.engine.cancel(run_id, scope=self.scope)
+        return self.service.cancel(run_id, scope=self.scope)
 
     def record(self, run_id: str) -> RunRecord | None:
         """The run's latest checkpoint, or ``None`` before its first save."""
-        try:
-            return self.engine.get(run_id, scope=self.scope)
-        except RunNotFoundError:
-            return None
+        return self.service.record(run_id, scope=self.scope)
 
     def runs(self) -> list[RunRecord]:
-        return self.engine.list_runs(scope=self.scope)
+        return self.service.runs(scope=self.scope)
 
     def is_running(self, run_id: str) -> bool:
-        with self._lock:
-            thread = self._threads.get(run_id)
-        return thread is not None and thread.is_alive()
+        return self.service.is_running(run_id, scope=self.scope)
 
     def error(self, run_id: str) -> str | None:
         """An error that stopped a background run before or outside the engine's record."""
-        with self._lock:
-            return self._errors.get(run_id)
+        return self.service.error(run_id, scope=self.scope)
 
-    def _launch_or_run(self, run_id: str, work: Callable[[], RunResult]) -> None:
-        if self.background:
-            self._launch(run_id, work)
-        else:
-            self._remember(work().record)
-
-    def _launch(self, run_id: str, work: Callable[[], RunResult]) -> None:
-        def target() -> None:
-            try:
-                self._remember(work().record)
-            except CampaignForgeError as exc:
-                with self._lock:
-                    self._errors[run_id] = str(exc)
-            except Exception as exc:  # noqa: BLE001 - a worker thread must report, not die silently
-                with self._lock:
-                    self._errors[run_id] = f"Unexpected {type(exc).__name__}: {exc}"
-
-        thread = threading.Thread(target=target, name=f"campaign-forge-{run_id}", daemon=True)
-        with self._lock:
-            self._errors.pop(run_id, None)
-            self._threads[run_id] = thread
-        thread.start()
-
-    def _remember(self, record: RunRecord) -> None:
-        if not self.settings.memory_history:
-            return
-        # History is a convenience: a full memory never fails a run.
-        with contextlib.suppress(MemoryStoreError):
-            remember_run(self.memory, record)
-
-    # ------------------------------------------------------------------ #
-    # Lifecycle
-    # ------------------------------------------------------------------ #
     def close(self) -> None:
         self.memory.close()
 

@@ -306,18 +306,22 @@ def test_local_session_closes_its_memory_when_the_engine_fails(
         local_session(settings)  # the autouse leak check proves the memory was closed
 
 
-def _background_session(engine: WorkflowEngine, tmp_path: Path) -> AppSession:
+def _background_session(
+    engine: WorkflowEngine, tmp_path: Path, *, mode: str = "local", history: bool = True
+) -> AppSession:
     from campaign_forge.memory import SqliteMemoryStore
 
-    settings = Settings(_env_file=None, provider="fake")  # type: ignore[call-arg]
+    settings = Settings(_env_file=None, provider="fake", memory_history=history)  # type: ignore[call-arg]
     return AppSession(
-        mode="local", settings=settings, engine=engine, memory=SqliteMemoryStore(tmp_path / "m.db")
+        mode=mode,  # type: ignore[arg-type]
+        settings=settings,
+        engine=engine,
+        memory=SqliteMemoryStore(tmp_path / "m.db"),
     )
 
 
 def _wait(session: AppSession, run_id: str) -> None:
-    for thread in list(session._threads.values()):  # noqa: SLF001 - test-only join
-        thread.join(timeout=30)
+    assert session.service.wait(30)
     assert not session.is_running(run_id)
 
 
@@ -364,8 +368,7 @@ def test_session_actions_approve_reject_cancel_and_resume(tmp_path: Path) -> Non
     from campaign_forge.exceptions import RateLimitedError
 
     engine, _ = make_engine(make_agent("a"), make_agent("b"))
-    session = _background_session(engine, tmp_path)
-    session.mode = "demo"  # actions run synchronously
+    session = _background_session(engine, tmp_path, mode="demo")  # actions run synchronously
     try:
         gated = workflow(step("a", "a"), step("b", "b", after=("a",), approval=True))
         run_id = session.start(gated, topic())
@@ -387,9 +390,7 @@ def test_session_actions_approve_reject_cancel_and_resume(tmp_path: Path) -> Non
 
     flaky = FakeProvider("ok", failures=[RateLimitedError("slow", retry_after=1.0)])
     engine, _ = make_engine(make_agent("a"), provider=flaky)
-    session = _background_session(engine, tmp_path / "second")
-    session.mode = "demo"
-    session.settings = session.settings.model_copy(update={"memory_history": False})
+    session = _background_session(engine, tmp_path / "second", mode="demo", history=False)
     try:
         run_id = session.start(workflow(step("a", "a")), topic())
         paused = session.record(run_id)

@@ -35,9 +35,11 @@ LAYERS: dict[str, int] = {
     "campaign_forge.evaluation": 4,
     "campaign_forge.orchestration": 5,
     "campaign_forge.workflow": 5,
+    "campaign_forge.services": 5,
     "campaign_forge.exports": 5,
     "campaign_forge.cli": 6,
     "campaign_forge.ui": 6,
+    "campaign_forge.api": 6,
     "campaign_forge.__main__": 6,
     "campaign_forge": 6,
 }
@@ -144,7 +146,12 @@ def test_no_code_execution_or_process_spawning(path: Path) -> None:
 
 #: Optional-extra libraries and the only modules allowed to import them, so the core
 #: package (library and CLI) works without the extra installed.
-EXTRA_IMPORTS: dict[str, set[str]] = {"streamlit": {"campaign_forge.ui.pages"}}
+EXTRA_IMPORTS: dict[str, set[str]] = {
+    "streamlit": {"campaign_forge.ui.pages"},
+    "fastapi": {"campaign_forge.api.app"},
+    "starlette": {"campaign_forge.api.app"},
+    "uvicorn": {"campaign_forge.api.__main__"},
+}
 
 
 def test_optional_extras_stay_out_of_the_core() -> None:
@@ -161,3 +168,43 @@ def test_optional_extras_stay_out_of_the_core() -> None:
                 if name in importers:
                     importers[name].add(_module_name(path))
     assert importers == EXTRA_IMPORTS
+
+
+#: What the API layer may import: the service layer and plain types, never the engine,
+#: agents, providers, tools or memory. Business logic therefore cannot live in the API.
+API_ALLOWED_PREFIXES = (
+    "campaign_forge.api",
+    "campaign_forge.services",
+    "campaign_forge.config",
+    "campaign_forge.exceptions",
+    "campaign_forge.models",
+    "campaign_forge.domain",
+    "campaign_forge.security",
+    "campaign_forge.exports",
+    "campaign_forge.logging_config",
+    "campaign_forge.core.agent",
+    "campaign_forge.orchestration.definition",
+    "campaign_forge.orchestration.state",
+)
+
+
+def test_the_api_holds_no_business_logic() -> None:
+    api_files = sorted((PACKAGE_ROOT / "api").glob("*.py"))
+    assert api_files
+    problems = []
+    for path in api_files:
+        importer = _module_name(path)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom):
+                continue
+            target = _resolve(node, importer, path.name == "__init__.py")
+            if not target.startswith("campaign_forge"):
+                continue
+            allowed = target == "campaign_forge" or any(
+                target == prefix or target.startswith(prefix + ".")
+                for prefix in API_ALLOWED_PREFIXES
+            )
+            if not allowed:
+                problems.append(f"{importer} imports {target}")
+    assert problems == []

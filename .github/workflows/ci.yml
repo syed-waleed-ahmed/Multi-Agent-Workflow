@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,ui]"
+          pip install -e ".[dev,ui,api]"
 
       - name: Ruff (lint)
         run: ruff check .
@@ -50,3 +50,35 @@ jobs:
 
       - name: Evaluation (offline, full-campaign workflow)
         run: python evals/run_eval.py --offline --workflow full-campaign --min-pass-rate 1.0
+
+  docker:
+    name: Docker image (API health and smoke test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the API image
+        run: docker build -t campaign-forge-api:ci .
+
+      - name: Run the container (simulated provider)
+        run: >
+          docker run -d --name forge -p 8000:8000
+          -e CF_API_KEYS=ci-key-0123456789 -e CF_PROVIDER=fake
+          campaign-forge-api:ci
+
+      - name: Smoke-test the API in the container
+        run: python scripts/api_smoke.py http://127.0.0.1:8000 ci-key-0123456789
+
+      - name: Docker reports the container healthy
+        run: |
+          for i in $(seq 1 30); do
+            status=$(docker inspect --format '{{.State.Health.Status}}' forge)
+            echo "health: $status"
+            [ "$status" = "healthy" ] && exit 0
+            sleep 2
+          done
+          exit 1
+
+      - name: Container logs
+        if: always()
+        run: docker logs forge

@@ -1,0 +1,25 @@
+# Only pyproject.toml, README.md and src/ are needed to build the API image.
+.git
+.github
+.venv
+.env
+.env.*
+!.env.example
+.streamlit
+**/__pycache__
+**/*.py[cod]
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.coverage
+htmlcov
+build
+dist
+*.egg-info
+outputs
+tests
+evals
+docs
+app
+examples
+scripts

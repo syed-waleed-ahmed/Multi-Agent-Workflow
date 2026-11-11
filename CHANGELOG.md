@@ -8,6 +8,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **HTTP API (Session 7, ADR-034).** `python -m campaign_forge.api`, or `uvicorn campaign_forge.api.app:create_app --factory`. Install the `[api]` extra.
+  - The 13 endpoints from the master prompt, plus run approval and listings, with typed models.
+  - Authentication with `X-API-Key` (`CF_API_KEYS`); each key is its own tenant, and the API is closed by default.
+  - Per-key request and run-start limits, and a per-process cap on active runs.
+  - One redacted JSON error shape.
+  - The schema is published in `docs/openapi.json` and checked by a test; usage is documented in `docs/API.md`, with `examples/api_client.py`.
+  - A `Dockerfile` (non-root, healthcheck) and `compose.yaml` (SQLite on a volume). A CI job builds the image and smoke-tests it (`scripts/api_smoke.py`).
+- **Service layer** (`campaign_forge.services`): `RunService` and `Platform` are shared by the API and the web app. An architecture rule keeps business logic out of the API.
+- **Cap-aware routing (ADR-035).** An agent whose answer may exceed the default model's per-request output cap uses the provider's strong model instead of being truncated.
 - **Streamlit app (Session 6, ADR-033).**
   - `streamlit run app/streamlit_app.py` opens the 16 navigation entries of ADR-018: Dashboard, New Run, Run Inspector, History, seven studios, Brand Memory, Agents, Workflow Builder, Evaluation Lab (a placeholder until Session 8), and Settings and Health.
   - Demo mode (the default) is simulated, labeled SIMULATED, and keeps everything in the browser session.
@@ -113,6 +122,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **D19: long answers were truncated on Groq's free tier.** A live run lost its social calendar, and the v1 research answer overflowed. Both needed more than qwen3.8's 1,000 tokens per request. Routing is now cap-aware (ADR-035).
 - **D16: parallel requests starved each other on Groq's free tier.** Under the 1,000 output-token/minute cap, two requests in flight exhausted their retries and paused the run. Groq requests are now serialised (ADR-032).
 - **D17: the v1 final brief overflowed the output cap.** It needs more than 1,000 tokens even when asked to be concise. The v1 manager (2,000 tokens) and the campaign reporter now use the `strong` model class, `openai/gpt-oss-120b` on Groq, which returned 2,500 tokens in one request in a live probe.
 - **D18: auto-resume crawled on an exhausted daily quota.** A daily quota's short retry hint frees room for about one call. Only rate-limit pauses are auto-resumed now.

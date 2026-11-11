@@ -26,7 +26,7 @@ Granular tasks for each session.
 ### Baseline
 
 - [~] S1-01 Provider facts were verified on 2026-11-10 (Session 0, same day). Resolving model aliases from live `/models` needs keys and owner approval: run `python scripts/provider_smoke.py --live --models`
-- [~] S1-02 Run a live eval baseline on Groq; record the date, model, pass rate, duration and any 429s. **Attempted three times on 2026-11-10; not passed.** Each failure was diagnosed and fixed (D11-D18). The third run hit the daily quota. Rerun when it refills (BUILD_STATUS.md, "Live runs").
+- [x] S1-02 Run a live eval baseline on Groq; record the date, model, pass rate, duration and any 429s. **Passed on 2026-11-11 (run 5): 2/2**, after runs 1-4 found and fixed D11-D19 (BUILD_STATUS.md, "Live runs").
 
 ### Defect fixes, each with a regression test
 
@@ -93,7 +93,7 @@ Granular tasks for each session.
 - [x] S3-02 Eleven agents per [AGENT_CATALOG.md](AGENT_CATALOG.md), each with spec, prompt version, output contract, validation, tests and rubric
 - [x] S3-03 Templates: `full-campaign`, `ad-pack`, `social-calendar`, `email-sequence`
 - [x] S3-04 Eval harness `--workflow` mode (per-output deterministic checks, call and token metrics), with a CI step for `full-campaign`
-- [~] S3-05 Live `full-campaign` run on the Groq free tier; record the measured usage; tag `2.0.0b1`. **Attempted three times on 2026-11-10; not passed** (paused on rate limits, then on the daily quota). The tag waits for a passing run.
+- [x] S3-05 Live `full-campaign` run on the Groq free tier; record the measured usage; tag `2.0.0b1`. **Passed on 2026-11-11 (run 5): every check green, 19 calls, 27,129 tokens, 375 s.**
 
 ## Session 4 - Tools and evidence-backed research
 
@@ -151,6 +151,25 @@ Granular tasks for each session.
 - [x] S6-12 Deploy demo mode to Streamlit Community Cloud: **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). **Needs the owner:** deploying requires their Streamlit account connected to GitHub. Until it is deployed and smoke-tested, nothing claims a live URL.
 - [x] S6-13 Docs: README (running the app), ARCHITECTURE status, ADR, CHANGELOG, BUILD_STATUS, SESSION_LOG
 
-## Sessions 7-10
+## Session 7 - FastAPI service and developer experience
+
+- [x] S7-01 `services/` (layer 5), one application layer shared by every interface:
+  - `RunService` starts, tracks and controls runs (background threads, history, a cap on active runs);
+  - `Platform` covers agents, workflows (built-in plus per-tenant custom), runs, providers and status.
+
+  The app's session delegates to it, so background execution exists in one place.
+- [x] S7-02 `api/` (layer 6): the 13 endpoints from the master prompt (`/health`, plus `/api/v1` agents, campaigns, workflows, executions, providers, system status), plus execution approval and a workflow list; typed request and response models
+- [x] S7-03 API-key authentication (`X-API-Key`, `CF_API_KEYS`, constant-time comparison). Each key is its own tenant scope, so clients cannot see each other's runs. `/health` is open.
+- [x] S7-04 Limits: requests per minute per key, run starts per minute per key, active background runs per instance. A limited request gets 429 with `Retry-After`.
+- [x] S7-05 Errors: one JSON error shape, mapped from the package's exceptions (400/403/404/409/422/429/503). Unexpected errors return a generic 500 with no internals, and messages are redacted.
+- [x] S7-06 Architecture rule: the API imports only the service layer and plain types, so no business logic lives in it
+- [x] S7-07 Dockerfile (non-root, healthcheck) and `compose.yaml` (SQLite on a volume). A CI job builds the image and checks `/health` and an authenticated call in the container.
+- [x] S7-08 The OpenAPI schema is published as `docs/openapi.json`; a test fails if it drifts. Plus `docs/API.md` and `examples/api_client.py`.
+- [x] S7-09 Tests with `TestClient`: every endpoint, auth, tenant isolation, limits, errors, background runs to completion
+- [x] S7-10 Docs: ADR-034, README, ARCHITECTURE status, SECURITY, CHANGELOG, BUILD_STATUS, SESSION_LOG
+
+- [x] S7-11 D19 (found by live run 4): cap-aware routing sends long answers to the provider's strong model instead of truncating them (ADR-035)
+
+## Sessions 8-10
 
 Scope and acceptance criteria are in [ROADMAP.md](ROADMAP.md). Granular tasks are written at the start of each session.

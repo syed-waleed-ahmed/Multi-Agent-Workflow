@@ -180,6 +180,9 @@ The 2.0 provider layer adds the settings below. Every command, including the v1 
 | `CF_RUN_STORE` | `json` | `json` (files in `CF_RUNS_DIR`) or `sqlite` (runs in `CF_MEMORY_DB`) |
 | `CF_MEMORY_HISTORY` | `true` | Remember completed runs as searchable campaign history |
 | `CF_UI_MODE` | `demo` | Web app: `demo` (simulated, nothing stored on the server) or `local` (your provider and stores) |
+| `CF_API_KEYS` | (unset) | API keys, comma-separated; without them the API answers 401 |
+| `CF_API_RATE_LIMIT` / `CF_API_RUN_LIMIT` | `120` / `10` | API requests and run starts per minute, per key |
+| `CF_API_MAX_ACTIVE_RUNS` | `4` | Background runs executing at once in one API process |
 
 ---
 
@@ -233,6 +236,21 @@ The app starts in **demo mode** with no API key. Every agent is answered by a de
 - **History, Brand Memory, Agents, Workflow Builder, Settings and Health.** Seven studios open New Run with the matching templates. The SEO and Analytics studios say plainly that their agents arrive in Session 8.
 
 Set `CF_UI_MODE=local` to use your configured provider and the same run store and memory as the CLI; local runs execute in the background while the page refreshes.
+
+### HTTP API (FastAPI)
+
+```bash
+pip install -e ".[api]"
+CF_API_KEYS=dev-key-0123456789 CF_PROVIDER=fake python -m campaign_forge.api   # http://127.0.0.1:8000/docs
+CF_API_KEYS=dev-key-0123456789 docker compose up --build                        # or in Docker, SQLite on a volume
+```
+
+The API offers agents, campaigns, workflows (built-in and your own), executions (resume, cancel, approve), providers and system status, all under `/api/v1`. It is closed by default:
+- Every request needs an `X-API-Key` from `CF_API_KEYS`, and each key is its own tenant.
+- Requests and run starts are rate-limited per key.
+- Runs execute in the background; you poll them.
+
+See [`docs/API.md`](docs/API.md), the schema in [`docs/openapi.json`](docs/openapi.json), and [`examples/api_client.py`](examples/api_client.py).
 
 ### Workflow engine (2.0 preview)
 

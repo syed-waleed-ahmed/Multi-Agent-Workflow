@@ -30,18 +30,15 @@ from rich.table import Table
 
 from .cli_memory import build_memory, load_brand
 from .config import Settings
-from .evaluation.offline import OfflineSearch, offline_responder
 from .exceptions import ConfigurationError, MemoryStoreError
 from .loaders import load_briefs
 from .orchestration.definition import WorkflowDefinition, load_definition, validate_definition
-from .orchestration.engine import RunResult, WorkflowEngine
+from .orchestration.engine import RunResult
+from .orchestration.factory import build_engine as build_engine  # patched by tests
 from .orchestration.history import remember_run
 from .orchestration.state import RunRecord, RunStatus
-from .orchestration.store import JsonFileRunStore, RunStore, SqliteRunStore
 from .orchestration.templates import BUILTIN_TEMPLATES, default_registry, get_template
-from .providers.fake import FakeProvider
-from .providers.router import ProviderRouter
-from .tools import ToolBox, build_toolbox, load_sources
+from .tools import load_sources
 
 EXIT_NEEDS_ACTION = 3
 _STATUS_STYLE = {
@@ -55,26 +52,6 @@ _STATUS_STYLE = {
     "failed": "red",
     "cancelled": "red",
 }
-
-
-def build_engine(settings: Settings) -> WorkflowEngine:
-    """The engine used by the CLI: built-in plus plugin agents, runs stored on disk.
-
-    With ``CF_PROVIDER=fake`` every agent is answered by the deterministic offline
-    responder: a key-free, network-free demonstration whose output is simulated.
-    """
-    router = ProviderRouter(settings)
-    if router.global_provider == "fake":
-        router.add_provider("fake", FakeProvider(offline_responder))
-        tools = ToolBox([OfflineSearch()])
-    else:
-        tools = build_toolbox(settings)
-    store: RunStore = (
-        SqliteRunStore(settings.memory_db)
-        if settings.run_store == "sqlite"
-        else JsonFileRunStore(settings.runs_dir)
-    )
-    return WorkflowEngine(default_registry(load_plugins=True), router, store=store, tools=tools)
 
 
 def add_engine_commands(subparsers: Any, common: Any) -> None:

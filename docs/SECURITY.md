@@ -79,6 +79,14 @@ Caps held in process memory reset when the app restarts. That is acceptable for 
 - **No error detail in the browser.** `client.showErrorDetails = false`, so tracebacks are not shown.
 - **Secrets.** `.streamlit/secrets.toml` is git-ignored. Keys appear only as "set" or "not set" on the health page.
 
+### Implemented in Session 7 (API)
+
+- **Closed by default.** Every `/api/v1` endpoint needs an `X-API-Key` that matches `CF_API_KEYS`, compared in constant time. With no keys configured, every request gets 401. Keys are secrets: they are redacted like provider keys, and the health page shows them only as set or not set.
+- **One tenant per key.** A key's runs, custom workflows and memory are invisible to other keys (tests cover this).
+- **Limits.** Requests and run starts are limited per key, and active runs per process (429 or 503 with `Retry-After`). Plan options can only lower a workflow's budget, never raise it.
+- **Errors leak nothing.** Messages are redacted, and unexpected errors return a generic 500 with no traceback.
+- **Container.** The image runs as a non-root user with a healthcheck. Compose binds to `127.0.0.1`; a TLS proxy is required before exposing the service.
+
 ## 6. Human approval policy
 
 - **Approval gates exist in the engine** from Session 2 (`WAITING_FOR_APPROVAL`). They are used for plan review and optional strategy sign-off.

@@ -164,7 +164,15 @@ class RunStateError(CampaignForgeError):
     """Raised for an illegal run-state transition or an operation the run's state forbids."""
 
 
-class RunNotFoundError(CampaignForgeError):
+class NotFoundError(CampaignForgeError):
+    """Base class for an unknown run, workflow, agent, brand or memory document."""
+
+
+class CapacityError(CampaignForgeError):
+    """Raised when a limit on concurrent work is reached; retrying later may succeed."""
+
+
+class RunNotFoundError(NotFoundError):
     """Raised when a run id is unknown in the given scope."""
 
 
@@ -176,5 +184,5 @@ class MemoryStoreError(CampaignForgeError):
     """Raised when the memory store refuses an operation (limits, invalid records)."""
 
 
-class MemoryNotFoundError(MemoryStoreError):
+class MemoryNotFoundError(MemoryStoreError, NotFoundError):
     """Raised when a brand or memory document is unknown in the given scope."""

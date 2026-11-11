@@ -1,0 +1,24 @@
+# Campaign Forge API with SQLite on a named volume.
+#
+#   CF_API_KEYS=change-me-0123456789 docker compose up --build
+#   curl -H "X-API-Key: change-me-0123456789" http://127.0.0.1:8000/api/v1/system/status
+#
+# Provider keys (GROQ_API_KEY, ...) and other settings are read from .env when it
+# exists. Set CF_PROVIDER=fake there for a key-free, simulated API.
+services:
+  api:
+    build: .
+    image: campaign-forge-api
+    ports:
+      - "127.0.0.1:8000:8000"  # local only; put a TLS proxy in front to expose it
+    environment:
+      CF_API_KEYS: ${CF_API_KEYS:?Set CF_API_KEYS to one or more comma-separated API keys}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - forge-data:/data
+    restart: unless-stopped
+
+volumes:
+  forge-data:

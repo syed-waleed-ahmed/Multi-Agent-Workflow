@@ -46,6 +46,7 @@ SECRET_FIELDS: tuple[str, ...] = (
     "mistral_api_key",
     "cloudflare_api_token",
     "tavily_api_key",
+    "api_keys",
 )
 
 
@@ -149,6 +150,16 @@ class Settings(BaseSettings):
     #: ADR-008). ``local``: your configured provider, run store and memory.
     ui_mode: Literal["demo", "local"] = "demo"
 
+    # --- API (Session 7, ADR-034) -------------------------------------------
+    #: Comma-separated API keys. Each key is its own tenant. Without keys, every
+    #: protected endpoint answers 401: the API is closed by default.
+    api_keys: SecretStr | None = None
+    #: Requests per minute per key, and run starts per minute per key.
+    api_rate_limit: int = Field(default=120, ge=1, le=10_000)
+    api_run_limit: int = Field(default=10, ge=1, le=1_000)
+    #: Background runs executing at once in one API process.
+    api_max_active_runs: int = Field(default=4, ge=1, le=64)
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalise_log_level(cls, value: object) -> object:
@@ -188,9 +199,15 @@ class Settings(BaseSettings):
         return plain or None
 
     def secret_values(self) -> tuple[str, ...]:
-        """Every configured secret, for log redaction."""
-        values = (self.secret(name) for name in SECRET_FIELDS)
-        return tuple(v for v in values if v)
+        """Every configured secret, for log redaction (each API key separately too)."""
+        values = [self.secret(name) for name in SECRET_FIELDS]
+        return tuple(v for v in [*values, *self.api_key_values] if v)
+
+    @property
+    def api_key_values(self) -> tuple[str, ...]:
+        """``CF_API_KEYS`` parsed (comma-separated, blanks dropped, de-duplicated)."""
+        raw = self.secret("api_keys") or ""
+        return tuple(dict.fromkeys(k.strip() for k in raw.split(",") if k.strip()))
 
     @property
     def research_tool_names(self) -> tuple[str, ...]:

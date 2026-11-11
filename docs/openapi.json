@@ -1,0 +1,3368 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Campaign Forge API",
+    "description": "Multi-agent marketing workflows over HTTP. Send `X-API-Key` on every `/api/v1` request. Runs execute in the background: start one, then poll its execution.",
+    "version": "1.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Health",
+        "description": "Liveness: the process is up. Needs no key.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agents": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "List Agents",
+        "operationId": "list_agents_api_v1_agents_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AgentView"
+                  },
+                  "type": "array",
+                  "title": "Response List Agents Api V1 Agents Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}": {
+      "get": {
+        "tags": [
+          "agents"
+        ],
+        "summary": "Get Agent",
+        "operationId": "get_agent_api_v1_agents__agent_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/campaigns": {
+      "post": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Create Campaign",
+        "description": "Start a campaign (a built-in workflow on a brief). Poll the returned execution.",
+        "operationId": "create_campaign_api_v1_campaigns_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignView"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/campaigns/{campaign_id}": {
+      "get": {
+        "tags": [
+          "campaigns"
+        ],
+        "summary": "Get Campaign",
+        "operationId": "get_campaign_api_v1_campaigns__campaign_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "campaign_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Campaign Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "List Workflows",
+        "operationId": "list_workflows_api_v1_workflows_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkflowView"
+                  },
+                  "type": "array",
+                  "title": "Response List Workflows Api V1 Workflows Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Create Workflow",
+        "description": "Store a custom workflow for this key, validated against the agent registry.",
+        "operationId": "create_workflow_api_v1_workflows_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkflowDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/workflows/{workflow_id}": {
+      "get": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Get Workflow",
+        "operationId": "get_workflow_api_v1_workflows__workflow_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/workflows/{workflow_id}/run": {
+      "post": {
+        "tags": [
+          "workflows"
+        ],
+        "summary": "Run Workflow",
+        "operationId": "run_workflow_api_v1_workflows__workflow_id__run_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workflow_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workflow Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/executions": {
+      "get": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "List Executions",
+        "operationId": "list_executions_api_v1_executions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExecutionSummary"
+                  },
+                  "type": "array",
+                  "title": "Response List Executions Api V1 Executions Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/executions/{execution_id}": {
+      "get": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Get Execution",
+        "operationId": "get_execution_api_v1_executions__execution_id__get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{execution_id}/resume": {
+      "post": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Resume Execution",
+        "description": "Continue a paused, failed or interrupted run from its checkpoint.",
+        "operationId": "resume_execution_api_v1_executions__execution_id__resume_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{execution_id}/cancel": {
+      "post": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Cancel Execution",
+        "operationId": "cancel_execution_api_v1_executions__execution_id__cancel_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{execution_id}/approve": {
+      "post": {
+        "tags": [
+          "executions"
+        ],
+        "summary": "Approve Step",
+        "description": "Approve (or reject, which cancels the run) a step waiting for a human.",
+        "operationId": "approve_step_api_v1_executions__execution_id__approve_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Execution Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExecutionView"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/providers": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "List Providers",
+        "description": "Supported providers. Keys appear only as configured or not.",
+        "operationId": "list_providers_api_v1_providers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProviderView"
+                  },
+                  "type": "array",
+                  "title": "Response List Providers Api V1 Providers Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    },
+    "/api/v1/system/status": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "System Status",
+        "operationId": "system_status_api_v1_system_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/AgentInputView"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "output_kind": {
+            "type": "string",
+            "title": "Output Kind"
+          },
+          "model_class": {
+            "type": "string",
+            "title": "Model Class"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "allowed_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Tools"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "prompt_version": {
+            "type": "string",
+            "title": "Prompt Version"
+          },
+          "rubric": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Rubric"
+          },
+          "limits": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Limits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "category",
+          "version",
+          "inputs",
+          "output_kind",
+          "model_class",
+          "capabilities",
+          "allowed_tools",
+          "enabled",
+          "prompt_version",
+          "rubric",
+          "limits"
+        ],
+        "title": "AgentDetail"
+      },
+      "AgentInputView": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "kind",
+          "required"
+        ],
+        "title": "AgentInputView"
+      },
+      "AgentView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/AgentInputView"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "output_kind": {
+            "type": "string",
+            "title": "Output Kind"
+          },
+          "model_class": {
+            "type": "string",
+            "title": "Model Class"
+          },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Capabilities"
+          },
+          "allowed_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Tools"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "category",
+          "version",
+          "inputs",
+          "output_kind",
+          "model_class",
+          "capabilities",
+          "allowed_tools",
+          "enabled"
+        ],
+        "title": "AgentView"
+      },
+      "ApprovalRequest": {
+        "properties": {
+          "step_id": {
+            "type": "string",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Step Id"
+          },
+          "approved": {
+            "type": "boolean",
+            "title": "Approved",
+            "default": true
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Comment",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step_id"
+        ],
+        "title": "ApprovalRequest"
+      },
+      "ArtifactView": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "markdown": {
+            "type": "string",
+            "title": "Markdown"
+          },
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          },
+          "claims": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Claims"
+          },
+          "evidence": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "markdown",
+          "data",
+          "claims",
+          "evidence"
+        ],
+        "title": "ArtifactView"
+      },
+      "BrandProfile": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "voice": {
+            "type": "string",
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Voice"
+          },
+          "tone_words": {
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Tone Words"
+          },
+          "audience": {
+            "type": "string",
+            "maxLength": 400,
+            "title": "Audience",
+            "default": ""
+          },
+          "values": {
+            "items": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 8,
+            "title": "Values"
+          },
+          "guidelines": {
+            "items": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Guidelines"
+          },
+          "avoid": {
+            "items": {
+              "type": "string",
+              "maxLength": 300,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Avoid"
+          },
+          "preferred_terms": {
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 25,
+            "title": "Preferred Terms"
+          },
+          "banned_terms": {
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 25,
+            "title": "Banned Terms"
+          },
+          "visual_style": {
+            "type": "string",
+            "maxLength": 600,
+            "title": "Visual Style",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "voice"
+        ],
+        "title": "BrandProfile",
+        "description": "A practical brand voice guide: what writers follow, and what code checks."
+      },
+      "BudgetLimits": {
+        "properties": {
+          "max_llm_calls": {
+            "type": "integer",
+            "maximum": 1000.0,
+            "minimum": 1.0,
+            "title": "Max Llm Calls",
+            "default": 40
+          },
+          "max_total_tokens": {
+            "type": "integer",
+            "maximum": 10000000.0,
+            "minimum": 1.0,
+            "title": "Max Total Tokens",
+            "default": 60000
+          },
+          "max_wall_seconds": {
+            "type": "number",
+            "maximum": 86400.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Max Wall Seconds",
+            "default": 600.0
+          },
+          "max_revisions": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Max Revisions",
+            "default": 10
+          },
+          "max_repairs": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Max Repairs",
+            "default": 10
+          },
+          "max_tool_calls": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Max Tool Calls",
+            "default": 20
+          }
+        },
+        "type": "object",
+        "title": "BudgetLimits",
+        "description": "Configurable ceilings for one run (defaults from docs/ARCHITECTURE.md T5)."
+      },
+      "CampaignBrief": {
+        "properties": {
+          "product_name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Product Name"
+          },
+          "product_description": {
+            "type": "string",
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Product Description"
+          },
+          "target_audience": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Target Audience"
+          },
+          "goal": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Goal"
+          },
+          "tone": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Tone"
+          },
+          "channels": {
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "minLength": 1
+            },
+            "type": "array",
+            "maxItems": 25,
+            "minItems": 1,
+            "title": "Channels"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product_name",
+          "product_description",
+          "target_audience",
+          "goal",
+          "tone",
+          "channels"
+        ],
+        "title": "CampaignBrief",
+        "description": "The user-supplied input that drives a campaign generation run."
+      },
+      "CampaignRequest": {
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/CampaignBrief"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BrandProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A brand profile the copy must follow (banned terms enforced)."
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceDocument"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Sources",
+            "description": "Your own source material; research agents cite it as user-provided."
+          },
+          "skip_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Skip Steps",
+            "description": "Optional steps to skip."
+          },
+          "max_llm_calls": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Llm Calls"
+          },
+          "max_total_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Total Tokens"
+          },
+          "max_wall_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 86400.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Wall Seconds"
+          },
+          "workflow": {
+            "type": "string",
+            "title": "Workflow",
+            "description": "A built-in workflow, e.g. full-campaign or ad-pack.",
+            "default": "full-campaign"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "brief"
+        ],
+        "title": "CampaignRequest"
+      },
+      "CampaignView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "'starting' until the run's first checkpoint is saved ('failed' if it stopped before that)."
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Reason"
+          },
+          "resume_after": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume After"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepView"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "outputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ArtifactView"
+            },
+            "type": "object",
+            "title": "Outputs"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Links"
+          },
+          "brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CampaignBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "report_markdown": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report Markdown"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workflow",
+          "status",
+          "status_reason",
+          "resume_after",
+          "running",
+          "error",
+          "simulated",
+          "created_at",
+          "updated_at",
+          "usage",
+          "steps",
+          "outputs",
+          "links",
+          "brief",
+          "report_markdown"
+        ],
+        "title": "CampaignView"
+      },
+      "Condition": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "pattern": "^(input|step):([a-z][a-z0-9_]*)$",
+            "title": "Source"
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^([A-Za-z0-9_]+(\\.[A-Za-z0-9_]+)*)?$",
+            "title": "Path",
+            "default": ""
+          },
+          "op": {
+            "type": "string",
+            "enum": [
+              "exists",
+              "not_exists",
+              "equals",
+              "not_equals",
+              "contains",
+              "not_contains",
+              "truthy",
+              "falsy"
+            ],
+            "title": "Op"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source",
+          "op"
+        ],
+        "title": "Condition",
+        "description": "A declarative predicate on an input or step artifact. It is never ``eval``-ed.\n\n``path`` is a dotted path into the artifact's JSON data. String comparisons\nfor ``contains`` are case-insensitive. A missing artifact or path counts as\n\"not present\"."
+      },
+      "ErrorDetail": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "details": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "message"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse"
+      },
+      "ExecutionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workflow": {
+            "type": "string",
+            "title": "Workflow"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "llm_calls": {
+            "type": "integer",
+            "title": "Llm Calls"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workflow",
+          "status",
+          "created_at",
+          "updated_at",
+          "llm_calls",
+          "total_tokens"
+        ],
+        "title": "ExecutionSummary"
+      },
+      "ExecutionView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workflow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "'starting' until the run's first checkpoint is saved ('failed' if it stopped before that)."
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Reason"
+          },
+          "resume_after": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume After"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "usage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UsageView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepView"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "outputs": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ArtifactView"
+            },
+            "type": "object",
+            "title": "Outputs"
+          },
+          "links": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Links"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workflow",
+          "status",
+          "status_reason",
+          "resume_after",
+          "running",
+          "error",
+          "simulated",
+          "created_at",
+          "updated_at",
+          "usage",
+          "steps",
+          "outputs",
+          "links"
+        ],
+        "title": "ExecutionView"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status",
+            "default": "ok"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version"
+        ],
+        "title": "Health"
+      },
+      "ProviderView": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "free_tier": {
+            "type": "boolean",
+            "title": "Free Tier"
+          },
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "allowed": {
+            "type": "boolean",
+            "title": "Allowed"
+          },
+          "is_global": {
+            "type": "boolean",
+            "title": "Is Global"
+          },
+          "default_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Model"
+          },
+          "models": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Models"
+          },
+          "data_use_notice": {
+            "type": "string",
+            "title": "Data Use Notice"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "display_name",
+          "free_tier",
+          "configured",
+          "allowed",
+          "is_global",
+          "default_model",
+          "models",
+          "data_use_notice"
+        ],
+        "title": "ProviderView"
+      },
+      "ReviewSpec": {
+        "properties": {
+          "critic": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "title": "Critic"
+          },
+          "threshold": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Threshold",
+            "default": 0.7
+          },
+          "max_revisions": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Max Revisions",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "critic"
+        ],
+        "title": "ReviewSpec",
+        "description": "Bounded critic review of a step's output."
+      },
+      "RunRequest": {
+        "properties": {
+          "brief": {
+            "$ref": "#/components/schemas/CampaignBrief"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BrandProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A brand profile the copy must follow (banned terms enforced)."
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourceDocument"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "Sources",
+            "description": "Your own source material; research agents cite it as user-provided."
+          },
+          "skip_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "title": "Skip Steps",
+            "description": "Optional steps to skip."
+          },
+          "max_llm_calls": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Llm Calls"
+          },
+          "max_total_tokens": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Total Tokens"
+          },
+          "max_wall_seconds": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 86400.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Wall Seconds"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "brief"
+        ],
+        "title": "RunRequest",
+        "description": "Inputs and plan options for a run. Limits can only lower the workflow's own."
+      },
+      "SourceDocument": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Content"
+          },
+          "origin": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Origin",
+            "default": "user"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "content"
+        ],
+        "title": "SourceDocument"
+      },
+      "StepDefinition": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Id"
+          },
+          "agent": {
+            "type": "string",
+            "maxLength": 100,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+            "title": "Agent"
+          },
+          "inputs": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]*$": {
+                "type": "string",
+                "pattern": "^(input|step):([a-z][a-z0-9_]*)$"
+              }
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "type": "object",
+            "title": "Inputs"
+          },
+          "after": {
+            "items": {
+              "type": "string",
+              "maxLength": 60,
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "type": "array",
+            "title": "After",
+            "default": []
+          },
+          "when": {
+            "items": {
+              "$ref": "#/components/schemas/Condition"
+            },
+            "type": "array",
+            "title": "When",
+            "default": []
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReviewSpec"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "approval": {
+            "type": "boolean",
+            "title": "Approval",
+            "default": false
+          },
+          "retries": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 0.0,
+            "title": "Retries",
+            "default": 0
+          },
+          "timeout_s": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3600.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timeout S"
+          },
+          "optional": {
+            "type": "boolean",
+            "title": "Optional",
+            "default": false
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "agent"
+        ],
+        "title": "StepDefinition",
+        "description": "One agent invocation inside a workflow."
+      },
+      "StepView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "review_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Score"
+          },
+          "skip_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Reason"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "agent",
+          "status",
+          "attempts",
+          "review_score",
+          "skip_reason",
+          "detail",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "StepView"
+      },
+      "SystemStatus": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "simulated": {
+            "type": "boolean",
+            "title": "Simulated"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "free_only": {
+            "type": "boolean",
+            "title": "Free Only"
+          },
+          "run_store": {
+            "type": "string",
+            "title": "Run Store"
+          },
+          "research_tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Research Tools"
+          },
+          "active_runs": {
+            "type": "integer",
+            "title": "Active Runs"
+          },
+          "max_active_runs": {
+            "type": "integer",
+            "title": "Max Active Runs"
+          },
+          "auth": {
+            "type": "string",
+            "const": "api_key",
+            "title": "Auth"
+          },
+          "keys_configured": {
+            "type": "integer",
+            "title": "Keys Configured"
+          },
+          "rate_limit_per_minute": {
+            "type": "integer",
+            "title": "Rate Limit Per Minute"
+          },
+          "run_limit_per_minute": {
+            "type": "integer",
+            "title": "Run Limit Per Minute"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "simulated",
+          "provider",
+          "free_only",
+          "run_store",
+          "research_tools",
+          "active_runs",
+          "max_active_runs",
+          "auth",
+          "keys_configured",
+          "rate_limit_per_minute",
+          "run_limit_per_minute"
+        ],
+        "title": "SystemStatus"
+      },
+      "UsageView": {
+        "properties": {
+          "llm_calls": {
+            "type": "integer",
+            "title": "Llm Calls"
+          },
+          "prompt_tokens": {
+            "type": "integer",
+            "title": "Prompt Tokens"
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "title": "Completion Tokens"
+          },
+          "total_tokens": {
+            "type": "integer",
+            "title": "Total Tokens"
+          },
+          "complete": {
+            "type": "boolean",
+            "title": "Complete"
+          }
+        },
+        "type": "object",
+        "required": [
+          "llm_calls",
+          "prompt_tokens",
+          "completion_tokens",
+          "total_tokens",
+          "complete"
+        ],
+        "title": "UsageView"
+      },
+      "WorkflowDefinition": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 60,
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^\\d+\\.\\d+\\.\\d+$",
+            "title": "Version",
+            "default": "1.0.0"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Description",
+            "default": ""
+          },
+          "inputs": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]*$": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+@[1-9][0-9]*$"
+              }
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "type": "object",
+            "title": "Inputs"
+          },
+          "optional_inputs": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]*$": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+@[1-9][0-9]*$"
+              }
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "type": "object",
+            "title": "Optional Inputs"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepDefinition"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Steps"
+          },
+          "outputs": {
+            "patternProperties": {
+              "^[a-z][a-z0-9_]*$": {
+                "type": "string",
+                "pattern": "^(input|step):([a-z][a-z0-9_]*)$"
+              }
+            },
+            "propertyNames": {
+              "maxLength": 60
+            },
+            "type": "object",
+            "title": "Outputs"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/BudgetLimits",
+            "default": {
+              "max_llm_calls": 40,
+              "max_total_tokens": 60000,
+              "max_wall_seconds": 600.0,
+              "max_revisions": 10,
+              "max_repairs": 10,
+              "max_tool_calls": 20
+            }
+          },
+          "max_parallel": {
+            "type": "integer",
+            "maximum": 8.0,
+            "minimum": 1.0,
+            "title": "Max Parallel",
+            "default": 3
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "inputs",
+          "steps"
+        ],
+        "title": "WorkflowDefinition",
+        "description": "A complete, structurally valid workflow."
+      },
+      "WorkflowDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "builtin",
+              "custom"
+            ],
+            "title": "Source"
+          },
+          "steps": {
+            "type": "integer",
+            "title": "Steps"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Inputs"
+          },
+          "optional_inputs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Optional Inputs"
+          },
+          "definition": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Definition"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version",
+          "description",
+          "source",
+          "steps",
+          "inputs",
+          "optional_inputs",
+          "definition"
+        ],
+        "title": "WorkflowDetail"
+      },
+      "WorkflowView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "builtin",
+              "custom"
+            ],
+            "title": "Source"
+          },
+          "steps": {
+            "type": "integer",
+            "title": "Steps"
+          },
+          "inputs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Inputs"
+          },
+          "optional_inputs": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Optional Inputs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version",
+          "description",
+          "source",
+          "steps",
+          "inputs",
+          "optional_inputs"
+        ],
+        "title": "WorkflowView"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}
