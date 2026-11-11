@@ -525,7 +525,7 @@ Because every step reads the brief, input edges crowded the graph, so they are n
 
 ### Not done
 
-- **S6-12, deployment to Streamlit Community Cloud:** needs the owner's Streamlit account connected to GitHub. Nothing claims a live URL. The steps are in [BUILD_STATUS.md](BUILD_STATUS.md).
+- **S6-12, deployment:** done on 2026-11-11 at the owner's request, through the owner's signed-in Streamlit account. The settings were: repository `syed-waleed-ahmed/Multi-Agent-Workflow`, branch `main`, entry `app/streamlit_app.py`, Python 3.13 (the newest version CI tests; Streamlit's default was 3.14), no secrets. **Live at https://campaign-forge.streamlit.app/.** Smoke test: a simulated `full-campaign` run completed in 14 calls, 11/11 steps, with the report, deliverables, sources and downloads shown.
 - **Recorded fixtures for the demo:** replaced by the offline responder until a live run passes (ADR-033).
 
 ### Next session: starting instructions

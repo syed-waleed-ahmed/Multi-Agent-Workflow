@@ -148,7 +148,7 @@ Granular tasks for each session.
 - [x] S6-09 Demo mode labeled SIMULATED everywhere. The app starts with no keys.
 - [x] S6-10 Tests: view models and exports (unit), plus Streamlit `AppTest` smoke tests for every page and a full demo run (skipped when Streamlit is not installed; CI installs `[ui]`)
 - [x] S6-11 Packaging: the `[ui]` extra; `app/requirements.txt` for Streamlit Community Cloud; `.streamlit/config.toml`
-- [ ] S6-12 Deploy demo mode to Streamlit Community Cloud. **Blocked on the owner.** **Needs the owner:** deploying requires their Streamlit account connected to GitHub. Until it is deployed and smoke-tested, nothing claims a live URL.
+- [x] S6-12 Deploy demo mode to Streamlit Community Cloud: **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). **Needs the owner:** deploying requires their Streamlit account connected to GitHub. Until it is deployed and smoke-tested, nothing claims a live URL.
 - [x] S6-13 Docs: README (running the app), ARCHITECTURE status, ADR, CHANGELOG, BUILD_STATUS, SESSION_LOG
 
 ## Sessions 7-10

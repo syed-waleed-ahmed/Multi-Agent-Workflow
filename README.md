@@ -219,6 +219,8 @@ You can also run without installing via `python -m campaign_forge ...` or the le
 
 ### Web app (Streamlit)
 
+**Live demo: [campaign-forge.streamlit.app](https://campaign-forge.streamlit.app/)** (simulated, no key needed).
+
 ```bash
 pip install -e ".[ui]"
 streamlit run app/streamlit_app.py

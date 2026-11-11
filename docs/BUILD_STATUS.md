@@ -1,8 +1,8 @@
 # Build Status
 
-- **Last updated:** 2026-11-10, end of Session 6
+- **Last updated:** 2026-11-11, end of Session 6 (demo deployed)
 - **Released version:** `campaign_forge` 1.1.0. Sessions 1-6 are committed on `main` and pushed. CI runs on Python 3.10-3.13 (see the gates table). No 2.0 tag yet.
-- **Current phase:** M1 (working AI platform) and the Session 4-6 features are implemented and pass every offline gate. The web app runs locally in demo mode; its **public deployment waits for the owner**. The **live acceptance runs have not passed yet** (see below), so `2.0.0b1` is not tagged. Session 7 is next.
+- **Current phase:** M1 (working AI platform) and the Session 4-6 features are implemented and pass every offline gate. The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). The **live acceptance runs have not passed yet** (see below), so `2.0.0b1` is not tagged. Session 7 is next.
 
 ## Sessions
 
@@ -14,7 +14,7 @@
 | S3 | Agent library wave 1 (completes M1) | **Done**, except the live acceptance S3-05 (attempted; see "Live runs") |
 | S4 | Tools and evidence-backed research | **Done** |
 | S5 | Memory and persistence | **Done**, except the Postgres store (deferred, ADR-031) |
-| S6 | Streamlit app and early demo deployment | **Done**, except the deployment S6-12 (needs the owner's Streamlit account) |
+| S6 | Streamlit app and early demo deployment | **Done**; demo live at https://campaign-forge.streamlit.app/ |
 | S7 | FastAPI service | Next |
 | S8 | Agent library wave 2 and Evaluation Lab | Not started |
 | S9 | Security hardening and live mode | Not started |
@@ -29,6 +29,7 @@
 | `pytest` (including the Streamlit AppTest suite) | 653 passed, 0 skipped |
 | Branch coverage | 97% (floor: 90%) |
 | App starts with no keys (`streamlit run app/streamlit_app.py`) | Yes: a simulated `full-campaign` run completed in a real browser |
+| Public demo (https://campaign-forge.streamlit.app/) | **Live.** Smoke test on 2026-11-11: the dashboard, the New Run plan preview, then "Approve and run": a `full-campaign` run completed (14 calls, 11/11 steps), with the SIMULATED notice, run graph, report, deliverables, sources and downloads shown. Streamlit Community Cloud, Python 3.13, branch `main`, no secrets. |
 | Offline eval, v1 pipeline | 10/10 |
 | Offline eval, `full-campaign` | 10/10 (138 calls, 57,427 simulated tokens for 10 briefs) |
 | Offline eval, `brand-kit` | 10/10 (70 calls) |
@@ -66,11 +67,6 @@ Record the results here. Tag `2.0.0b1` only if they pass.
 
 ## Waiting on the owner
 
-- **Deploy the demo to Streamlit Community Cloud (S6-12).** It needs your Streamlit account connected to GitHub. The steps:
-  1. At share.streamlit.io, choose "Create app", then this repository and branch `main`.
-  2. Set the main file path to `app/streamlit_app.py`. Streamlit reads `app/requirements.txt`, next to the entry point. Python 3.12 is fine.
-  3. Add no secrets: demo mode needs none.
-  4. Open the URL, run a simulated `full-campaign`, and send me the URL, so the smoke test and the URL can be recorded here.
 - **Postgres/Supabase memory store:** needs a database to test against (ADR-031).
 - **Tags:** `2.0.0b1` waits for a passing live acceptance run.
 
@@ -79,5 +75,5 @@ Record the results here. Tag `2.0.0b1` only if they pass.
 1. Read this file, [SESSION_LOG.md](SESSION_LOG.md), [DECISIONS.md](DECISIONS.md) and [TASK_BOARD.md](TASK_BOARD.md).
 2. Run `git status`, then the gates: `ruff check .`, `ruff format --check .`, `mypy src`, `pytest`, `python evals/run_eval.py --offline`, `python evals/run_eval.py --offline --workflow full-campaign`.
 3. If the Groq daily quota has refilled, rerun the live acceptance (see "Live runs") and record the numbers.
-4. If the owner has deployed the demo, smoke-test the URL and record it (S6-12).
+4. Check that https://campaign-forge.streamlit.app/ still loads; a push to `main` redeploys it automatically.
 5. Start Session 7 (FastAPI service). Write its granular tasks into [TASK_BOARD.md](TASK_BOARD.md) first, from [ROADMAP.md](ROADMAP.md) section S7.
