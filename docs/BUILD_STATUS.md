@@ -1,7 +1,7 @@
 # Build Status
 
 - **Last updated:** 2026-11-11, end of Session 8
-- **Version:** **`2.0.0rc1`** (release candidate, tagged `v2.0.0rc1`). The previous pre-release is `v2.0.0b1` (`94af144`). GitHub release pages are not created: the permission policy blocks them, so they are left to the owner. Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
+- **Version:** **`2.0.0rc1`** (release candidate), committed on `main` as `4c8b726` with CI green. The **`v2.0.0rc1` tag is not created yet**: the permission policy blocked it, so it waits for the owner. The previous pre-release is tagged `v2.0.0b1` (`94af144`). GitHub release pages are also left to the owner. Sessions 1-7 are on `main`, and CI is green on Python 3.10-3.13 plus the Docker job.
 - **Current phase:** The full agent catalog (28 agents, 14 templates), memory, the web app, the API and the Evaluation Lab are implemented and pass every offline gate. **The live acceptance runs passed on 2026-11-11** (v1 2/2, `full-campaign` 1/1 with no warnings). The web app's demo mode is **live at https://campaign-forge.streamlit.app/** (deployed and smoke-tested 2026-11-11). Session 9 (security hardening and live mode) is next.
 
 ## Sessions
@@ -69,7 +69,7 @@ A run uses about 27,000 tokens of the 200,000-token daily quota. The v1 harness 
 
 ## Waiting on the owner
 
-- **GitHub release for `v2.0.0b1`.** The tag is pushed, and the release notes are drafted. Creating the release page was blocked by the session's permission policy (it creates a public surface).
+- **Tag `v2.0.0rc1` at `4c8b726`, and the GitHub release pages for `v2.0.0b1` and `v2.0.0rc1`.** Both were blocked by the session's permission policy (they create public surfaces). The `v2.0.0b1` tag is already pushed.
 - **Postgres/Supabase memory store:** needs a database to test against (ADR-031).
 
 ## Next session: starting instructions
