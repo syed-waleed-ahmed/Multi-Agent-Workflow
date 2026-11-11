@@ -76,6 +76,15 @@ from .models import (
 
 API_KEY_HEADER = "X-API-Key"
 _CAPACITY_RETRY_S = 30
+_ERROR_DESCRIPTIONS = {
+    400: "Bad request",
+    401: "Missing or invalid API key",
+    404: "Not found (including resources owned by another key)",
+    409: "Conflict with the run's state",
+    422: "Invalid request or workflow definition",
+    429: "Rate limited",
+    503: "At capacity",
+}
 
 _log = get_logger("api")
 
@@ -222,8 +231,11 @@ def create_app(settings: Settings | None = None, *, platform: Platform | None = 
         """Liveness: the process is up. Needs no key."""
         return Health(version=__version__)
 
+    # Explicit descriptions keep the schema identical on every Python version (3.13
+    # renamed the 422 reason phrase, which FastAPI would otherwise copy).
     errors: dict[int | str, dict[str, Any]] = {
-        code: {"model": ErrorResponse} for code in (400, 401, 404, 409, 422, 429, 503)
+        code: {"model": ErrorResponse, "description": description}
+        for code, description in _ERROR_DESCRIPTIONS.items()
     }
     v1 = APIRouter(prefix=API_PREFIX, responses=errors)
 
