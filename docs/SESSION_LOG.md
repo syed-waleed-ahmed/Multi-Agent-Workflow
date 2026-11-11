@@ -790,6 +790,22 @@ See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
   - the issue-template chooser;
   - the README's six diagrams.
 
+### Follow-up: live mode on the public app, and a Run Inspector fix
+
+- **Owner actions:**
+  - added the Streamlit secrets (`GROQ_API_KEY`, `CF_LIVE_OWNER_KEY = "true"`);
+  - published the `v2.0.0b1` release;
+  - turned on private vulnerability reporting.
+- **Live runs on the public app, after a reboot,** with "Go live on the demo's key". Both completed (4/4 steps):
+  - `ad-pack`: 11 calls, 16,196 tokens;
+  - `email-sequence`: 10 calls, 11,868 tokens.
+
+  This closes the last definition-of-done gap.
+- **Bug found and fixed: the run picker showed "running" after a background run finished.**
+  - **Cause:** Streamlit identifies a keyed select box by its key alone, and the browser keeps the labels it first received.
+  - **Fix:** the picker's key now changes with its labels; the selection is kept.
+  - **Verified:** an app test checks the picker is rebuilt, and the second live run on the public app showed "completed".
+
 ### Blocked, and left to the owner
 
 The session's permission policy blocks tags, GitHub releases and repository-settings changes. These were prepared in the browser for the owner's click:

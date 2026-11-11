@@ -250,3 +250,4 @@ Granular tasks for each session.
 - [x] S10-09 Status docs, session log, and the final gates
 - [x] S10-10 The planner reaches the CLI (`campaign-forge plan`, `execute auto`), closing the definition-of-done item "Planner assigns tasks"; verified live on two briefs
 - [x] S10-11 D21 (found by the live smoke test): the CLI no longer crashes on characters a Windows console cannot encode
+- [x] S10-12 Live runs on the public app with the owner's key (`ad-pack`, `email-sequence`), and the Run Inspector's stale "running" label fixed (found there)

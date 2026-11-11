@@ -23,12 +23,14 @@ All runs below used **Groq's free tier**, with no billing attached:
 - `qwen/qwen3.8-27b` is the default for the small and standard classes. It allows 1,000 output tokens per request and per minute, and 200,000 tokens per day.
 - `openai/gpt-oss-120b` is the strong class. Cap-aware routing (ADR-035) also uses it for long answers.
 
-Durations include waits for free-tier rate limits, so on this tier they measure the provider's limits as much as the workflow. The estimated cost of every run is $0.00.
+Durations include waits for free-tier rate limits, so on this tier they measure the provider's limits as much as the workflow. Runs in the public app were read from its Run Inspector. The app's runs are not saved, so they have no JSON report, and their start times are approximate. The estimated cost of every run is $0.00.
 
 ## Results
 
 | Date (UTC) | Workflow | Dataset and cases | Result | Calls | Tokens | Duration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-11 about 17:44 | `email-sequence` | the app's example brief (EcoSip) | **Completed**, 4/4 steps | 10 | 11,868 | about 190 s (steps: 66, 47.6, 34.8 and 39.2 s) | On the public app, in live mode with the owner's key (Streamlit Community Cloud). Reviews: copy 0.75, emails 0.69. |
+| 2026-11-11 about 16:53 | `ad-pack` | the app's example brief (EcoSip) | **Completed**, 4/4 steps | 11 | 16,196 | not recorded | On the public app, in live mode with the owner's key: the first live run on the deployed app. |
 | 2026-11-11 15:42 | `full-campaign` | the gallery brief (EcoSip, four channels) | **Pass** (all critical checks), 1 warning | 18 | 28,592 | 233.7 s | Session 10 final smoke test with `campaign-forge execute`; critic review 0.75. Warning: the optional ads step failed, because a Google Ads headline was 37 characters (limit 30) after one repair. [Output](examples/full-campaign-live.md) |
 | 2026-11-11 14:19 | `seo-content-pack` | corpus: `baseline-ecommerce` | **Pass** (all checks) | 11 | 11,792 | 226.5 s | Keywords, plan, article (outline and sections), audit, safety review. [Report](benchmarks/2026-11-11-seo-content-pack-live.json) |
 | 2026-11-11 14:14 | `landing-page` | corpus: `baseline-ecommerce` | **Pass** (all checks) | 12 | 13,577 | 273.5 s | Critic review score 0.78; 1 retry. [Report](benchmarks/2026-11-11-landing-page-live.json) |
