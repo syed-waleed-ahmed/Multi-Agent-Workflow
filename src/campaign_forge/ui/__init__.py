@@ -8,6 +8,24 @@
 
 from __future__ import annotations
 
-from .session import SAMPLE_BRAND, AppSession, build_session, demo_session, local_session
+from .session import (
+    SAMPLE_BRAND,
+    AppSession,
+    Deployment,
+    build_session,
+    demo_session,
+    live_session,
+    local_session,
+    visitor_key,
+)
 
-__all__ = ["SAMPLE_BRAND", "AppSession", "build_session", "demo_session", "local_session"]
+__all__ = [
+    "SAMPLE_BRAND",
+    "AppSession",
+    "Deployment",
+    "build_session",
+    "demo_session",
+    "live_session",
+    "local_session",
+    "visitor_key",
+]

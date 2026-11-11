@@ -411,7 +411,8 @@ def health_rows(settings: Settings, router: ProviderRouter, *, mode: str) -> lis
     ]
     for model_class in ModelClass:
         try:
-            route = router.resolve(model_class=model_class)
+            # The class default: a short answer never triggers cap-aware routing (ADR-035).
+            route = router.resolve(model_class=model_class, output_tokens=1)
             value = f"{route.provider} / {route.model}"
         except CampaignForgeError as exc:
             value = f"not available: {exc}"
@@ -420,7 +421,7 @@ def health_rows(settings: Settings, router: ProviderRouter, *, mode: str) -> lis
     rows.append({"setting": "Fallback providers", "value": fallbacks})
     tools = ", ".join(settings.research_tool_names) or "none"
     rows.append({"setting": "Research tools", "value": tools})
-    if mode == "demo":
+    if mode in ("demo", "live"):
         where = "this browser session only (nothing on the server)"
         rows.append({"setting": "Storage", "value": where})
     else:

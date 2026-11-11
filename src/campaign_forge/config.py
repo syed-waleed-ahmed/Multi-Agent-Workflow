@@ -27,7 +27,7 @@ from pydantic import (
     ValidationError,
     field_validator,
 )
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 from .exceptions import ConfigurationError
 
@@ -160,6 +160,24 @@ class Settings(BaseSettings):
     #: Background runs executing at once in one API process.
     api_max_active_runs: int = Field(default=4, ge=1, le=64)
 
+    # --- Public demo: live mode (Session 9, ADR-037) ------------------------
+    #: Offer live runs on the deployment's own Groq key (the owner's). Off by
+    #: default: the owner opts in, and every cap below applies.
+    live_owner_key: bool = False
+    #: Offer live runs on a visitor's own Groq key, held in their session only.
+    live_visitor_keys: bool = True
+    #: Owner-key live runs one browser session may start.
+    live_session_runs: int = Field(default=3, ge=0, le=100)
+    #: Owner-key live runs per UTC day in one app process (5 x 30,000 tokens stays
+    #: under Groq's free 200,000 tokens per day).
+    live_daily_runs: int = Field(default=5, ge=0, le=1_000)
+    #: Live runs executing at once in one app process, whichever key they use.
+    live_concurrent_runs: int = Field(default=2, ge=1, le=16)
+    #: Per-run ceilings for every live run (the plan's own budget applies if lower).
+    live_run_calls: int = Field(default=25, ge=1, le=1_000)
+    live_run_tokens: int = Field(default=30_000, ge=1, le=1_000_000)
+    live_run_seconds: float = Field(default=1_200.0, gt=0.0, le=86_400.0)
+
     @field_validator("log_level", mode="before")
     @classmethod
     def _normalise_log_level(cls, value: object) -> object:
@@ -228,6 +246,36 @@ class Settings(BaseSettings):
             if name and name not in names:
                 names.append(name)
         return tuple(names)
+
+
+class _IsolatedSettings(Settings):
+    """Settings that read no environment variable, ``.env`` file or secrets directory."""
+
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        return (init_settings,)
+
+
+def isolated_settings(**values: Any) -> Settings:
+    """Settings built only from ``values`` and the defaults, never from the environment.
+
+    The public demo's live sessions use this, so a visitor's run can never reach
+    the deployment's other keys, fallback providers or routing overrides (ADR-037).
+
+    Raises:
+        ConfigurationError: if a value is invalid.
+    """
+    try:
+        return _IsolatedSettings(**values)
+    except ValidationError as exc:
+        raise ConfigurationError(f"Invalid settings:\n{exc}") from exc
 
 
 @lru_cache(maxsize=1)

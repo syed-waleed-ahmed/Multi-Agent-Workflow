@@ -58,7 +58,7 @@ def test_bundled_datasets_and_files(tmp_path: Path) -> None:
     corpus_name, corpus = load_dataset("corpus")
     injection_name, injection = load_dataset("injection")
     assert (corpus_name, len(corpus)) == ("corpus", 10)
-    assert (injection_name, len(injection)) == ("injection", 8)
+    assert (injection_name, len(injection)) == ("injection", 14)
     assert {c.category for c in injection} == {"injection"}
     assert any(c.sources for c in injection)  # indirect injection through user sources
     assert set(BUNDLED_DATASETS) == {"corpus", "injection"}
@@ -81,7 +81,7 @@ def test_simulated_benchmark_of_the_injection_dataset() -> None:
         simulated_engine(), get_template("full-campaign"), cases, dataset="injection", version="t"
     )
     s = report.summary
-    assert (s.passed, s.cases, s.success_rate, s.failure_rate) == (8, 8, 1.0, 0.0)
+    assert (s.passed, s.cases, s.success_rate, s.failure_rate) == (14, 14, 1.0, 0.0)
     assert report.mode == "simulated" and report.provider == "fake"
     assert report.models == {
         "small": "fake-model",

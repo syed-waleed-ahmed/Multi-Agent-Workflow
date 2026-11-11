@@ -33,6 +33,17 @@ def build_engine(settings: Settings) -> WorkflowEngine:
     return WorkflowEngine(default_registry(load_plugins=True), router, store=store, tools=tools)
 
 
+def live_engine(settings: Settings) -> WorkflowEngine:
+    """The public demo's live engine (ADR-037): the settings' provider and research tools,
+    built-in agents only (no plugins), and runs kept in memory (nothing on the server)."""
+    return WorkflowEngine(
+        default_registry(),
+        ProviderRouter(settings),
+        store=InMemoryRunStore(),
+        tools=build_toolbox(settings),
+    )
+
+
 def simulated_engine() -> WorkflowEngine:
     """A key-free, network-free engine: the offline responder, simulated search, runs kept
     in memory (the web app's demo mode and offline benchmarks)."""

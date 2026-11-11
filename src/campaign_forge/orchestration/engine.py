@@ -62,6 +62,7 @@ from ..exceptions import (
 )
 from ..logging_config import get_logger
 from ..providers.router import ProviderRouter
+from ..security.redaction import redact
 from ..tools.base import ToolBox
 from .definition import StepDefinition, WorkflowDefinition, parse_ref, validate_definition
 from .state import RunRecord, RunStatus, SkipReason, StepState, StepStatus
@@ -576,10 +577,13 @@ class WorkflowEngine:
         if isinstance(exc, RunCancelledError):
             state.status = StepStatus.CANCELLED
             return None
+        # Provider errors arrive redacted, but any other exception's text is recorded
+        # here, shown in the app and saved in checkpoints: redact it first.
+        message = redact(str(exc), self._router.secret_values)
         if isinstance(exc, _PAUSE_ERRORS):
             state.reset()
-            state.detail = f"paused: {type(exc).__name__}: {exc}"
-            emit(EventType.WARNING, f"{step_id} paused: {exc}", step_id)
+            state.detail = f"paused: {type(exc).__name__}: {message}"
+            emit(EventType.WARNING, f"{step_id} paused: {message}", step_id)
             if isinstance(exc, QuotaExhaustedError):
                 return ("quota exhausted", exc.resume_after)
             if isinstance(exc, RateLimitedError):
@@ -588,12 +592,12 @@ class WorkflowEngine:
         if state.attempts <= step.retries:
             state.status = StepStatus.PENDING
             state.detail = f"retrying after {type(exc).__name__}"
-            emit(EventType.WARNING, f"{step_id} failed, retrying: {exc}", step_id)
+            emit(EventType.WARNING, f"{step_id} failed, retrying: {message}", step_id)
             return None
         state.status = StepStatus.FAILED
-        state.error = str(exc)
+        state.error = message
         state.error_type = type(exc).__name__
-        emit(EventType.STEP_FINISHED, f"{step_id} failed: {exc}", step_id, status="failed")
+        emit(EventType.STEP_FINISHED, f"{step_id} failed: {message}", step_id, status="failed")
         return None
 
     def _run_step(

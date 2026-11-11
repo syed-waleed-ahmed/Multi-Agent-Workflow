@@ -11,6 +11,9 @@ Rules every page follows:
   error messages, never a model's private reasoning (providers strip it).
 * **Model text is rendered without raw HTML.** Streamlit's Markdown escapes
   HTML; the HTML export disables it too.
+* **Live mode is capped and keys stay in the session** (ADR-037). A visitor's key
+  is read from a masked field that clears on submit, held only by the live
+  session object, and never shown, logged or stored.
 """
 
 from __future__ import annotations
@@ -23,11 +26,13 @@ import streamlit as st
 from pydantic import ValidationError
 
 from .. import __version__
+from ..config import Settings
 from ..core.budget import BudgetLimits
 from ..domain.brand import BRAND_KIND, BrandProfile
 from ..exceptions import CampaignForgeError, MemoryNotFoundError, WorkflowValidationError
 from ..exports import SIMULATED_NOTICE, artifact_markdown, is_simulated, run_html, run_json
 from ..exports import run_markdown as export_markdown
+from ..logging_config import configure_logging
 from ..models import CampaignBrief
 from ..orchestration.definition import WorkflowDefinition, load_definition
 from ..orchestration.factory import simulated_engine
@@ -41,7 +46,7 @@ from ..services.lab import (
     load_dataset,
     run_benchmark,
 )
-from .session import AppSession, build_session
+from .session import AppSession, Deployment
 from .views import (
     EXAMPLE_BRIEF,
     STUDIOS,
@@ -67,6 +72,8 @@ from .views import (
 )
 
 SESSION_KEY = "campaign_forge_session"
+#: The demo session, kept while the visitor tries live mode.
+DEMO_SESSION_KEY = "campaign_forge_demo_session"
 SELECTED_RUN = "campaign_forge_selected_run"
 CUSTOM_DEFINITION = "campaign_forge_custom_definition"
 LAB_REPORT = "campaign_forge_lab_report"
@@ -87,13 +94,58 @@ _STATUS_COLOR = {
 VIEWS = "views"
 
 
+@st.cache_resource(show_spinner=False)
+def deployment() -> Deployment:
+    """Shared by every browser session of this process: settings and live-mode caps.
+
+    Streamlit loads ``.streamlit/secrets.toml`` (Streamlit Community Cloud's
+    secrets) into the environment at startup, so ``Settings()`` sees the owner's
+    key there. Logging is configured once, with every configured secret redacted.
+    """
+    settings = Settings()
+    configure_logging(settings.log_level, secrets=settings.secret_values())
+    return Deployment.from_settings(settings)
+
+
 def current_session() -> AppSession:
     """This browser session's state, created on first use (demo mode by default)."""
     session = st.session_state.get(SESSION_KEY)
     if not isinstance(session, AppSession):
-        session = build_session()
+        session = deployment().first_session()
         st.session_state[SESSION_KEY] = session
     return session
+
+
+def _go_live(session: AppSession) -> None:
+    """Make ``session`` (live) current, keeping the demo session to come back to."""
+    current = current_session()
+    if current.simulated:
+        st.session_state[DEMO_SESSION_KEY] = current
+    else:
+        _retire(current)
+    st.session_state[SESSION_KEY] = session
+    st.session_state.pop(SELECTED_RUN, None)
+
+
+def _go_demo() -> None:
+    """Back to the demo session. A live session's key goes with it."""
+    current = current_session()
+    demo = st.session_state.pop(DEMO_SESSION_KEY, None)
+    if not isinstance(demo, AppSession):
+        demo = deployment().first_session()
+    st.session_state[SESSION_KEY] = demo
+    st.session_state.pop(SELECTED_RUN, None)
+    _retire(current)
+
+
+def _retire(session: AppSession) -> None:
+    """Release a session we leave. A run still executing finishes, then is dropped."""
+    if session.mode == "live" and not session.service.active_count():
+        session.close()
+
+
+def _live_label(session: AppSession) -> str:
+    return "the demo's key" if session.owner_key else "your own Groq key"
 
 
 def _choose(label: str, options: Sequence[str], **kwargs: Any) -> str | None:
@@ -159,6 +211,10 @@ def render_sidebar() -> None:
                 "**Demo mode.** Agents are answered by a simulated responder, and nothing you "
                 "enter is stored on the server."
             )
+        elif session.mode == "live":
+            left = session.runs_left()
+            note = "" if left is None else f" Live runs left: {left}."
+            st.success(f"**Live mode** on {_live_label(session)} (Groq).{note}")
         else:
             st.info(f"**Local mode.** Provider: {session.engine.router.global_provider}.")
         st.caption(f"Campaign Forge {__version__}")
@@ -178,6 +234,18 @@ def render_dashboard() -> None:
         st.info(
             "You are in demo mode: every run is simulated by a deterministic offline responder, "
             "so you can try every workflow without an API key."
+        )
+        public = deployment()
+        if public.owner_key_offered or public.visitor_keys_offered:
+            st.page_link(
+                f"{VIEWS}/settings.py",
+                label="Try live mode (real model calls on Groq's free tier)",
+                icon=":material/bolt:",
+            )
+    elif session.mode == "live":
+        st.info(
+            f"Live mode on {_live_label(session)}: runs call Groq for real, each capped at "
+            f"{session.quota.limits.describe() if session.quota else 'the plan budget'}."
         )
     runs = session.runs()
     needs_action = (RunStatus.PAUSED, RunStatus.WAITING_FOR_APPROVAL)
@@ -334,7 +402,8 @@ def render_new_run(studio: Studio | None = None) -> None:
     template = _choose("Workflow", options, format_func=label, key=f"{prefix}-template")
     if template is None:
         return
-    definition = custom if template == _CUSTOM and custom is not None else get_template(template)
+    chosen = custom if template == _CUSTOM and custom is not None else get_template(template)
+    definition = session.capped(chosen)
     st.caption(definition.description)
 
     st.subheader("1. Brief")
@@ -353,15 +422,24 @@ def render_new_run(studio: Studio | None = None) -> None:
             inputs["sources"] = sources
 
     st.subheader("3. Plan" if extras else "2. Plan")
-    plan = _plan_controls(definition, prefix)
+    # Live caps lower the maximums, so live mode has its own widgets.
+    plan = _plan_controls(definition, f"{prefix}-live" if session.mode == "live" else prefix)
     st.graphviz_chart(dag_dot(plan))
     st.dataframe(plan_rows(plan), hide_index=True)
-    note = (
-        "Simulated: no provider is called and nothing is stored on the server."
-        if session.simulated
-        else f"Runs on {session.engine.router.global_provider}; free tiers may pause on rate "
-        "limits, and the run resumes from its checkpoint."
-    )
+    if session.simulated:
+        note = "Simulated: no provider is called and nothing is stored on the server."
+    elif session.mode == "live":
+        left = session.runs_left()
+        note = (
+            f"Live on {_live_label(session)}: real calls to Groq, kept in this browser session "
+            "only. Free tiers may pause on rate limits."
+            + ("" if left is None else f" Live runs left on the demo's key: {left}.")
+        )
+    else:
+        note = (
+            f"Runs on {session.engine.router.global_provider}; free tiers may pause on rate "
+            "limits, and the run resumes from its checkpoint."
+        )
     st.caption(
         f"Budget: up to {plan.limits.max_llm_calls} model calls and "
         f"{plan.limits.max_total_tokens:,} tokens. {note}"
@@ -546,8 +624,8 @@ def _act(action: Callable[[], object]) -> None:
 def render_history() -> None:
     session = current_session()
     st.title("History")
-    if session.simulated:
-        st.caption("Demo history lasts only as long as this browser session.")
+    if session.mode != "local":
+        st.caption("History lasts only as long as this browser session.")
     runs_tab, campaigns_tab, notes_tab = st.tabs(["Runs", "Campaign history", "Notes"])
     with runs_tab:
         runs = session.runs()
@@ -756,7 +834,7 @@ def render_evaluation_lab() -> None:
         key="lab-dataset",
         format_func=lambda d: {
             "corpus": "Corpus (10 varied briefs)",
-            "injection": "Injection (8 attacks)",
+            "injection": "Injection (14 attacks)",
         }.get(d, d),
     )
     workflow = _choose(
@@ -770,7 +848,12 @@ def render_evaluation_lab() -> None:
     name, cases = load_dataset(dataset)
     ids = [c.id for c in cases]
     live = False
-    if not session.simulated:
+    if session.mode == "live":
+        st.caption(
+            "Benchmarks are simulated in the public app; live benchmarks run in local mode, "
+            "where the quota is your own."
+        )
+    if session.mode == "local":
         live = st.toggle(
             "Run live against your provider (real benchmark; uses quota and takes minutes "
             "per case)",
@@ -875,10 +958,72 @@ def render_settings() -> None:
                 st.success(f"{status.provider}: OK ({status.latency_s:.2f} s). {status.detail}")
             else:
                 st.error(f"{status.provider}: not OK. {status.detail}")
+    _render_live_mode(session)
     st.caption(
         "Set CF_UI_MODE=local to use your configured provider and the CLI's stores; the "
         "default is demo mode."
     )
+
+
+def _render_live_mode(session: AppSession) -> None:
+    """Switch between demo and live mode (the public app only)."""
+    public = deployment()
+    if session.mode == "local" or not (
+        public.owner_key_offered or public.visitor_keys_offered or session.mode == "live"
+    ):
+        return
+    st.subheader("Live mode")
+    limits = public.quota.limits
+    if session.mode == "live":
+        left = session.runs_left()
+        st.success(
+            f"Live on {_live_label(session)}. Each run is capped at {limits.describe()}."
+            + ("" if left is None else f" Live runs left: {left}.")
+        )
+        label = "Back to demo mode" if session.owner_key else "Forget my key"
+        if st.button(label, key="live-off"):
+            _go_demo()
+            st.rerun()
+        return
+    st.write(
+        "Live mode calls Groq's free tier, so outputs come from a real model instead of the "
+        f"simulated responder. Each run is capped at {limits.describe()}, and runs and outputs "
+        "stay in this browser session only."
+    )
+    st.warning(
+        "What you submit in live mode is sent to Groq and handled under Groq's terms. Do not "
+        "enter confidential information."
+    )
+    if public.owner_key_offered:
+        left_today = public.quota.owner_runs_left_today()
+        st.caption(
+            f"The demo's key: {limits.session_runs} runs per visit, {left_today} of "
+            f"{limits.daily_runs} left today for everyone."
+        )
+        if st.button("Go live on the demo's key", key="live-owner", disabled=left_today == 0):
+            _start_live(public.owner_session)
+    if public.visitor_keys_offered:
+        with st.form("live-visitor", clear_on_submit=True):
+            raw = st.text_input(
+                "Your Groq API key",
+                type="password",
+                help="Free at console.groq.com. Held in this browser session's memory only: "
+                "never shown, logged or saved, and gone when you close the tab or choose "
+                "'Forget my key'.",
+            )
+            submitted = st.form_submit_button("Go live with my key")
+        if submitted:
+            _start_live(lambda: public.visitor_session(raw))
+
+
+def _start_live(build: Callable[[], AppSession]) -> None:
+    try:
+        session = build()
+    except CampaignForgeError as exc:
+        st.error(str(exc))
+        return
+    _go_live(session)
+    st.rerun()
 
 
 __all__ = [

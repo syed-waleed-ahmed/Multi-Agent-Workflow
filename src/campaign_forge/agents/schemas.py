@@ -723,6 +723,10 @@ class BrandCheck(BaseModel):
 # --------------------------------------------------------------------------- #
 # Report
 # --------------------------------------------------------------------------- #
+#: Separates a report's model-written narrative from the deliverables code appends.
+REPORT_DIVIDER = "---\n\n# Deliverables"
+
+
 class CampaignReport(BaseModel):
     title: Short
     markdown: str = Field(min_length=1)

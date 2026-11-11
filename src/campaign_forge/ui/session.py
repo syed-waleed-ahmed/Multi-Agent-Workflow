@@ -1,15 +1,20 @@
 """The app's per-browser-session state, with no Streamlit dependency.
 
-Two modes (``CF_UI_MODE``):
+Three modes:
 
 * **demo** (the default, and the public deployment): every agent is answered by
   the deterministic offline responder, and every output is labeled SIMULATED.
   Runs, brands and notes live in this session's memory only. Nothing is written
   on the server (ADR-008), so a visitor's data ends with their browser session.
-* **local**: your configured provider, plus the run store and memory database
-  the CLI uses (``CF_RUNS_DIR`` or SQLite, ``CF_MEMORY_DB``). Runs execute in
-  a background thread, so the page stays responsive while a free tier waits
-  out its rate limits.
+* **live** (the public deployment, on request; ADR-037): real model calls on
+  Groq, with the owner's key or the visitor's own. Storage stays in session
+  memory as in demo mode, settings are isolated from the deployment's
+  environment, and every run is capped (:mod:`campaign_forge.services.live`).
+* **local** (``CF_UI_MODE=local``): your configured provider, plus the run store
+  and memory database the CLI uses (``CF_RUNS_DIR`` or SQLite, ``CF_MEMORY_DB``).
+
+Live and local runs execute in a background thread, so the page stays responsive
+while a free tier waits out its rate limits.
 
 The Streamlit pages only read and call this object. Every engine and memory
 call goes through it with the session's scope.
@@ -17,24 +22,35 @@ call goes through it with the session's scope.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Literal
 
 from pydantic import BaseModel
 
-from ..config import Settings
+from ..config import Settings, isolated_settings
 from ..domain.artifacts import Artifact
 from ..domain.brand import BrandProfile
 from ..domain.scope import Scope
+from ..exceptions import ConfigurationError, LiveQuotaError
 from ..memory.sqlite import IN_MEMORY, SqliteMemoryStore
 from ..orchestration.definition import WorkflowDefinition
 from ..orchestration.engine import WorkflowEngine
-from ..orchestration.factory import simulated_engine
+from ..orchestration.factory import live_engine, simulated_engine
 from ..orchestration.state import RunRecord
+from ..providers.router import ProviderRouter
+from ..services.live import LiveLimits, LiveQuota
 from ..services.runs import RunService
 
-UIMode = Literal["demo", "local"]
+UIMode = Literal["demo", "live", "local"]
+KeySource = Literal["owner", "visitor"]
+
+#: A Groq key's shape. Requiring it means the key-shaped redaction pattern
+#: (``gsk_...``) always matches a visitor's key, wherever it might appear.
+GROQ_KEY_PATTERN = re.compile(r"gsk_[A-Za-z0-9]{20,200}")
+#: Deployment settings a live session keeps (none of them can reach another key).
+_LIVE_PASSTHROUGH = ("model", "temperature", "max_tokens", "request_timeout", "max_retries")
 
 #: The sample brand every demo session starts with, so Brand Memory has something to show.
 SAMPLE_BRAND = BrandProfile(
@@ -63,15 +79,24 @@ class AppSession:
     engine: WorkflowEngine
     memory: SqliteMemoryStore
     scope: Scope = field(default_factory=Scope.local)
+    #: Live mode only: the process-wide caps, and whose key the session uses.
+    quota: LiveQuota | None = None
+    key_source: KeySource | None = None
+    #: Owner-key live runs this session has started.
+    live_runs: int = 0
     service: RunService = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        # Demo runs finish in a moment; local runs may wait out rate limits for minutes.
+        if (self.mode == "live") != (self.quota is not None and self.key_source is not None):
+            raise ConfigurationError("A live session needs a quota and a key source.")
+        # Demo runs finish in a moment; live and local runs may wait out rate limits.
         self.service = RunService(
             self.engine,
             self.memory,
-            background=self.mode == "local",
+            background=self.mode != "demo",
             history=self.settings.memory_history,
+            slots=self.quota.slots if self.quota is not None else None,
+            secrets=self.settings.secret_values(),
         )
 
     @property
@@ -82,16 +107,51 @@ class AppSession:
     def background(self) -> bool:
         return self.service.background
 
+    @property
+    def owner_key(self) -> bool:
+        """Live on the deployment's own key (the per-session and daily caps apply)."""
+        return self.key_source == "owner"
+
+    def runs_left(self) -> int | None:
+        """Owner-key live runs this session may still start (``None``: not capped)."""
+        if self.quota is None or not self.owner_key:
+            return None
+        session_left = self.quota.limits.session_runs - self.live_runs
+        return max(min(session_left, self.quota.owner_runs_left_today()), 0)
+
+    def capped(self, definition: WorkflowDefinition) -> WorkflowDefinition:
+        """The plan as this session may run it: live runs get the per-run caps."""
+        return self.quota.limits.cap(definition) if self.quota is not None else definition
+
     def start(
         self, definition: WorkflowDefinition, inputs: Mapping[str, BaseModel | Artifact]
     ) -> str:
         """Validate, then start a run. Returns its id (the run may still be executing).
 
+        In live mode the plan is capped here, whatever the page sent.
+
         Raises:
             WorkflowValidationError: if the definition or inputs are invalid. No run
                 is created in that case.
+            LiveQuotaError: if an owner-key cap (session or daily) is used up.
+            CapacityError: if every live slot is taken.
         """
-        return self.service.start(definition, inputs, scope=self.scope)
+        plan = self.capped(definition)
+        if self.quota is None or not self.owner_key:
+            return self.service.start(plan, inputs, scope=self.scope)
+        if self.live_runs >= self.quota.limits.session_runs:
+            raise LiveQuotaError(
+                f"This session has used its {self.quota.limits.session_runs} live runs on the "
+                "demo key. Add your own free Groq key to keep going, or return to demo mode."
+            )
+        self.quota.reserve_owner_run()
+        try:
+            run_id = self.service.start(plan, inputs, scope=self.scope)
+        except BaseException:
+            self.quota.refund_owner_run()
+            raise
+        self.live_runs += 1
+        return run_id
 
     def resume(self, run_id: str) -> None:
         self.service.resume(run_id, scope=self.scope)
@@ -118,6 +178,59 @@ class AppSession:
 
     def close(self) -> None:
         self.memory.close()
+
+
+def visitor_key(raw: str) -> str:
+    """A visitor's Groq key, checked for shape only (it is never stored or echoed).
+
+    Raises:
+        ConfigurationError: if the text is not shaped like a Groq key.
+    """
+    key = raw.strip()
+    if not GROQ_KEY_PATTERN.fullmatch(key):
+        raise ConfigurationError(
+            "That does not look like a Groq API key (it starts with gsk_). Nothing was kept."
+        )
+    return key
+
+
+def live_settings(key: str, base: Settings | None = None) -> Settings:
+    """Isolated settings for a live session: Groq with ``key``, Wikipedia research only.
+
+    Nothing comes from the environment, so no other key, fallback provider or
+    routing override of the deployment is reachable. When the deployment itself
+    routes to Groq, the model and sampling settings it sets explicitly carry over.
+    Only explicit ones: an explicit model pins every class to it, which would turn
+    off cap-aware routing (ADR-035).
+    """
+    values: dict[str, object] = {
+        "provider": "groq",
+        "groq_api_key": key,
+        "research_tools": "wikipedia",
+    }
+    if base is not None and ProviderRouter(base).global_provider == "groq":
+        chosen = base.model_fields_set
+        values.update({name: getattr(base, name) for name in _LIVE_PASSTHROUGH if name in chosen})
+    return isolated_settings(**values)
+
+
+def live_session(
+    key: str, *, key_source: KeySource, quota: LiveQuota, base: Settings | None = None
+) -> AppSession:
+    """Real model calls on Groq with ``key``, session-memory storage, capped runs."""
+    settings = live_settings(key, base)
+    engine = live_engine(settings)
+    memory = SqliteMemoryStore(IN_MEMORY, secrets=settings.secret_values())
+    session = AppSession(
+        mode="live",
+        settings=settings,
+        engine=engine,
+        memory=memory,
+        quota=quota,
+        key_source=key_source,
+    )
+    memory.save_brand(session.scope, SAMPLE_BRAND)
+    return session
 
 
 def demo_session() -> AppSession:
@@ -149,3 +262,60 @@ def build_session(settings: Settings | None = None) -> AppSession:
     if resolved.ui_mode == "demo" or resolved.provider == "fake":
         return demo_session()
     return local_session(resolved)
+
+
+@dataclass
+class Deployment:
+    """What every browser session of one app process shares: the deployment's settings
+    and the live-mode caps (one :class:`LiveQuota`)."""
+
+    settings: Settings
+    quota: LiveQuota
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> Deployment:
+        return cls(settings, LiveQuota(LiveLimits.from_settings(settings)))
+
+    @property
+    def public(self) -> bool:
+        """The public app (demo mode by default), where live mode may be offered."""
+        return self.settings.ui_mode == "demo" and self.settings.provider != "fake"
+
+    @property
+    def owner_key_offered(self) -> bool:
+        """Live runs on the owner's key: the owner opted in and a Groq key is configured."""
+        return (
+            self.public
+            and self.settings.live_owner_key
+            and self.settings.secret("groq_api_key") is not None
+        )
+
+    @property
+    def visitor_keys_offered(self) -> bool:
+        return self.public and self.settings.live_visitor_keys
+
+    def first_session(self) -> AppSession:
+        """The session a new browser session starts with (demo, unless ``CF_UI_MODE=local``)."""
+        return build_session(self.settings)
+
+    def owner_session(self) -> AppSession:
+        """A live session on the owner's key.
+
+        Raises:
+            ConfigurationError: if the deployment does not offer it.
+        """
+        key = self.settings.secret("groq_api_key")
+        if not self.owner_key_offered or key is None:
+            raise ConfigurationError("Live runs on the demo's key are not offered here.")
+        return live_session(key, key_source="owner", quota=self.quota, base=self.settings)
+
+    def visitor_session(self, raw_key: str) -> AppSession:
+        """A live session on a visitor's own Groq key, held in this object only.
+
+        Raises:
+            ConfigurationError: if visitor keys are not offered, or the text is not a key.
+        """
+        if not self.visitor_keys_offered:
+            raise ConfigurationError("Live runs with your own key are not offered here.")
+        key = visitor_key(raw_key)
+        return live_session(key, key_source="visitor", quota=self.quota, base=self.settings)

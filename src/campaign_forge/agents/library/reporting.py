@@ -35,6 +35,7 @@ from ..schemas import (
     MODELS_BY_KIND,
     PLAN_KIND,
     POSITIONING_KIND,
+    REPORT_DIVIDER,
     REPORT_KIND,
     SOCIAL_KIND,
     VISUALS_KIND,
@@ -164,7 +165,7 @@ class CampaignReporterAgent:
 
     @staticmethod
     def _assemble(product: str, narrative: str, inputs: Mapping[str, Artifact]) -> CampaignReport:
-        parts = [f"# Campaign Brief - {product}", narrative, "---", "# Deliverables"]
+        parts = [f"# Campaign Brief - {product}", narrative, REPORT_DIVIDER]
         missing: list[str] = []
         for name, kind, title in _SOURCES:
             artifact = inputs.get(name)

@@ -6,13 +6,16 @@ those threads, records errors that happen outside the engine's own record,
 caps how many runs execute at once, and adds completed runs to campaign
 history. Every call takes the caller's scope, so one tenant can never start,
 read or control another tenant's run.
+
+:class:`RunSlots` caps runs across several services: the public demo gives each
+browser session its own service, and one shared pool of slots (ADR-037).
 """
 
 from __future__ import annotations
 
 import contextlib
 import threading
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 
 from pydantic import BaseModel
 
@@ -24,6 +27,41 @@ from ..orchestration.definition import WorkflowDefinition
 from ..orchestration.engine import RunResult, WorkflowEngine, new_run_id
 from ..orchestration.history import remember_run
 from ..orchestration.state import RunRecord
+from ..security.redaction import redact
+
+
+class RunSlots:
+    """A cap on runs executing at once, shared by several :class:`RunService` objects."""
+
+    def __init__(self, limit: int) -> None:
+        if limit < 1:
+            raise ValueError("limit must be >= 1")
+        self.limit = limit
+        self._active = 0
+        self._lock = threading.Lock()
+
+    @property
+    def active(self) -> int:
+        with self._lock:
+            return self._active
+
+    def acquire(self) -> None:
+        """Take a slot.
+
+        Raises:
+            CapacityError: if every slot is taken.
+        """
+        with self._lock:
+            if self._active >= self.limit:
+                raise CapacityError(
+                    f"{self._active} live runs are already executing (the limit is "
+                    f"{self.limit}). Retry when one finishes."
+                )
+            self._active += 1
+
+    def release(self) -> None:
+        with self._lock:
+            self._active = max(self._active - 1, 0)
 
 
 class RunService:
@@ -34,6 +72,8 @@ class RunService:
             mode), or finish before returning (the app's demo mode, which is instant).
         history: remember completed runs as campaign documents in ``memory``.
         max_active: the most background runs executing at once (``None``: no cap).
+        slots: a pool shared with other services; every execution holds one slot.
+        secrets: values to redact from recorded errors (key-shaped strings always are).
     """
 
     def __init__(
@@ -44,12 +84,16 @@ class RunService:
         background: bool,
         history: bool = True,
         max_active: int | None = None,
+        slots: RunSlots | None = None,
+        secrets: Iterable[str] = (),
     ) -> None:
         self.engine = engine
         self.memory = memory
         self.background = background
         self.history = history
         self.max_active = max_active
+        self.slots = slots
+        self._secrets = tuple(secrets)
         self._threads: dict[str, threading.Thread] = {}
         self._errors: dict[str, str] = {}
         self._owners: dict[str, Scope] = {}
@@ -69,7 +113,8 @@ class RunService:
 
         Raises:
             WorkflowValidationError: if the definition is invalid; no run is created.
-            CapacityError: if ``max_active`` background runs are already executing.
+            CapacityError: if ``max_active`` background runs are already executing,
+                or every shared slot is taken.
         """
         self.engine.validate(definition)
         run_id = new_run_id()
@@ -145,7 +190,13 @@ class RunService:
     # ------------------------------------------------------------------ #
     def _dispatch(self, run_id: str, scope: Scope, work: Callable[[], RunResult]) -> None:
         if not self.background:
-            self._remember(work().record)
+            if self.slots is not None:
+                self.slots.acquire()
+            try:
+                self._remember(work().record)
+            finally:
+                if self.slots is not None:
+                    self.slots.release()
             return
 
         def target() -> None:
@@ -153,10 +204,14 @@ class RunService:
                 self._remember(work().record)
             except CampaignForgeError as exc:
                 with self._lock:
-                    self._errors[run_id] = str(exc)
+                    self._errors[run_id] = redact(str(exc), self._secrets)
             except Exception as exc:  # noqa: BLE001 - a worker thread must report, not die silently
+                message = redact(f"Unexpected {type(exc).__name__}: {exc}", self._secrets)
                 with self._lock:
-                    self._errors[run_id] = f"Unexpected {type(exc).__name__}: {exc}"
+                    self._errors[run_id] = message
+            finally:
+                if self.slots is not None:
+                    self.slots.release()
 
         thread = threading.Thread(target=target, name=f"campaign-forge-{run_id}", daemon=True)
         with self._lock:
@@ -166,6 +221,8 @@ class RunService:
                     f"{active} runs are already executing (the limit is {self.max_active}). "
                     "Retry when one finishes."
                 )
+            if self.slots is not None:
+                self.slots.acquire()  # raises CapacityError before anything is registered
             self._errors.pop(run_id, None)
             self._threads[run_id] = thread
             self._owners[run_id] = scope

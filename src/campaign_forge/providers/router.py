@@ -91,6 +91,11 @@ class ProviderRouter:
     def global_provider(self) -> str:
         return self._global_profile.name
 
+    @property
+    def secret_values(self) -> tuple[str, ...]:
+        """The configured secrets, for redacting messages (never for display)."""
+        return self._settings.secret_values()
+
     def profile(self, name: str) -> ProviderProfile:
         if name == self._global_profile.name:
             return self._global_profile

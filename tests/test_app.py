@@ -18,7 +18,7 @@ pytest.importorskip("streamlit")
 from streamlit.testing.v1 import AppTest  # noqa: E402
 
 from campaign_forge.config import Settings  # noqa: E402
-from campaign_forge.evaluation.offline import offline_responder  # noqa: E402
+from campaign_forge.evaluation.offline import OfflineSearch, offline_responder  # noqa: E402
 from campaign_forge.exceptions import RateLimitedError  # noqa: E402
 from campaign_forge.memory import SqliteMemoryStore  # noqa: E402
 from campaign_forge.orchestration import (  # noqa: E402
@@ -29,8 +29,17 @@ from campaign_forge.orchestration import (  # noqa: E402
     get_template,
 )
 from campaign_forge.providers import FakeProvider, ProviderRouter  # noqa: E402
-from campaign_forge.ui import AppSession, demo_session  # noqa: E402
-from campaign_forge.ui.pages import CUSTOM_DEFINITION, SELECTED_RUN, SESSION_KEY  # noqa: E402
+from campaign_forge.services import LiveLimits, LiveQuota  # noqa: E402
+from campaign_forge.tools import ToolBox  # noqa: E402
+from campaign_forge.ui import AppSession, demo_session, live_session  # noqa: E402
+from campaign_forge.ui import session as session_module  # noqa: E402
+from campaign_forge.ui.pages import (  # noqa: E402
+    CUSTOM_DEFINITION,
+    DEMO_SESSION_KEY,
+    SELECTED_RUN,
+    SESSION_KEY,
+    deployment,
+)
 from campaign_forge.ui.views import EXAMPLE_BRIEF  # noqa: E402
 
 from .orchestration_helpers import make_agent, make_engine, step, topic, workflow  # noqa: E402
@@ -39,16 +48,37 @@ APP = Path(__file__).resolve().parents[1] / "app" / "streamlit_app.py"
 PAGES = sorted(p.name for p in (APP.parent / "views").glob("*.py"))
 
 
+OWNER_KEY = "gsk_" + "Owner123" * 6
+VISITOR_KEY = "gsk_" + "Visit123" * 6
+
+
 @pytest.fixture
 def app(monkeypatch: pytest.MonkeyPatch) -> Iterator[AppTest]:
     monkeypatch.setenv("CF_UI_MODE", "demo")
+    deployment.clear()  # shared by every session of a process: rebuilt from this test's env
     at = AppTest.from_file(str(APP), default_timeout=60)
     yield at
-    try:
-        session = at.session_state[SESSION_KEY]
-    except KeyError:
-        return
-    session.close()
+    deployment.clear()
+    for key in (SESSION_KEY, DEMO_SESSION_KEY):
+        try:
+            session = at.session_state[key]
+        except KeyError:
+            continue
+        assert session.service.wait(30)
+        session.close()
+
+
+def _offline_live_engine(settings: Settings) -> WorkflowEngine:
+    router = ProviderRouter(settings, providers={"groq": FakeProvider(offline_responder)})
+    return WorkflowEngine(
+        default_registry(), router, store=InMemoryRunStore(), tools=ToolBox([OfflineSearch()])
+    )
+
+
+@pytest.fixture
+def offline_live(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Live sessions answer with the offline responder: no network, no key used."""
+    monkeypatch.setattr(session_module, "live_engine", _offline_live_engine)
 
 
 def _ok(at: AppTest) -> AppTest:
@@ -349,10 +379,10 @@ def test_evaluation_lab_runs_a_simulated_benchmark(app: AppTest) -> None:
     _ok(app.switch_page("views/evaluation_lab.py").run())
     app.selectbox(key="lab-dataset").set_value("injection")
     _ok(app.run())
-    assert len(app.multiselect(key="lab-cases-injection-False").value) == 8
+    assert len(app.multiselect(key="lab-cases-injection-False").value) == 14
     _ok(app.button(key="lab-run").click().run())
     assert "SIMULATED benchmark" in app.warning[0].value
-    assert [m.value for m in app.metric][0] == "8/8"
+    assert [m.value for m in app.metric][0] == "14/14"
     assert "No regressions against the baseline" in app.success[0].value
     assert {b.label for b in app.get("download_button")} == {"Report (JSON)", "Report (Markdown)"}
     app.multiselect(key="lab-cases-injection-False").set_value(["direct-goal"])
@@ -361,3 +391,106 @@ def test_evaluation_lab_runs_a_simulated_benchmark(app: AppTest) -> None:
     app.selectbox(key="lab-workflow").set_value("ad-pack")
     _ok(app.button(key="lab-run").click().run())
     assert "No bundled baseline" in "\n".join(c.value for c in app.caption)
+
+
+# --------------------------------------------------------------------------- #
+# Live mode (Session 9, ADR-037)
+# --------------------------------------------------------------------------- #
+def _shown(at: AppTest) -> str:
+    """Everything the page shows as text, sidebar included.
+
+    Text-field values are left out: AppTest keeps a submitted value, while the browser
+    clears a ``clear_on_submit`` form itself.
+    """
+    parts = [_texts(at)] + [c.value for c in at.caption] + [s.value for s in at.subheader]
+    parts += [e.value for e in at.sidebar.success] + [e.value for e in at.sidebar.warning]
+    return "\n".join(str(p) for p in parts)
+
+
+@pytest.mark.usefixtures("offline_live")
+def test_live_mode_on_the_demo_key_is_capped(app: AppTest, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GROQ_API_KEY", OWNER_KEY)
+    monkeypatch.setenv("CF_LIVE_OWNER_KEY", "true")
+    monkeypatch.setenv("CF_LIVE_SESSION_RUNS", "1")
+    _ok(app.run())
+    demo = _session(app)
+    _ok(app.switch_page("views/settings.py").run())
+    assert "1 runs per visit, 5 of 5 left today" in _shown(app)
+    _ok(_button(app, "Go live on the demo's key").click().run())
+    live = _session(app)
+    assert live.mode == "live" and live.owner_key
+    assert "Live mode** on the demo's key" in _shown(app) and "Live runs left: 1" in _shown(app)
+
+    _ok(app.switch_page("views/new_run.py").run())
+    assert app.number_input(key="new-live-calls").value == 25  # full-campaign allows 40
+    assert app.number_input(key="new-live-tokens").value == 30_000
+    assert "Live runs left on the demo's key: 1" in _shown(app)
+    _ok(_button(app, "Approve and run").click().run())
+    assert live.service.wait(30) and live.live_runs == 1
+    assert live.runs()[0].definition.limits.max_llm_calls == 25
+
+    _ok(app.switch_page("views/new_run.py").run())
+    _ok(_button(app, "Approve and run").click().run())
+    assert "used its 1 live runs" in app.error[0].value
+    assert len(live.runs()) == 1
+
+    _ok(app.switch_page("views/settings.py").run())
+    assert OWNER_KEY not in _shown(app)
+    _ok(_button(app, "Back to demo mode").click().run())
+    assert _session(app) is demo  # the demo session's runs and brands are kept
+
+
+@pytest.mark.usefixtures("offline_live")
+def test_live_mode_with_a_visitor_key(app: AppTest) -> None:
+    _ok(app.run())
+    _ok(app.switch_page("views/settings.py").run())
+    assert "Go live on the demo's key" not in {b.label for b in app.button}  # not opted in
+    field = next(t for t in app.text_input if t.label == "Your Groq API key")
+    field.set_value("not-a-key")
+    _ok(_button(app, "Go live with my key").click().run())
+    assert "does not look like a Groq API key" in app.error[0].value
+    assert _session(app).simulated and "not-a-key" not in _shown(app)
+
+    field = next(t for t in app.text_input if t.label == "Your Groq API key")
+    field.set_value(VISITOR_KEY)
+    _ok(_button(app, "Go live with my key").click().run())
+    live = _session(app)
+    assert live.mode == "live" and not live.owner_key and live.runs_left() is None
+    assert live.settings.secret("groq_api_key") == VISITOR_KEY
+    assert "your own Groq key" in _shown(app)
+    assert VISITOR_KEY not in _shown(app)
+    assert not [f for f in app.text_input if f.label == "Your Groq API key"]  # form gone
+
+    _ok(app.switch_page("views/new_run.py").run())
+    _ok(_button(app, "Approve and run").click().run())
+    assert live.service.wait(30)
+    assert live.runs()[0].status is RunStatus.COMPLETED
+
+    _ok(app.switch_page("views/settings.py").run())
+    _ok(_button(app, "Forget my key").click().run())
+    assert _session(app).simulated
+    with pytest.raises(KeyError):
+        app.session_state[DEMO_SESSION_KEY]
+
+
+def test_live_mode_is_not_offered_when_switched_off(
+    app: AppTest, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CF_LIVE_VISITOR_KEYS", "false")
+    monkeypatch.delenv("CF_LIVE_OWNER_KEY", raising=False)
+    _ok(app.run())
+    assert "Try live mode" not in str(app.main)
+    _ok(app.switch_page("views/settings.py").run())
+    assert "Live mode" not in [s.value for s in app.subheader]
+
+
+@pytest.mark.usefixtures("offline_live")
+def test_the_lab_stays_simulated_in_live_mode(app: AppTest) -> None:
+    quota = LiveQuota(LiveLimits.from_settings(Settings(_env_file=None)))  # type: ignore[call-arg]
+    app.session_state[SESSION_KEY] = live_session(VISITOR_KEY, key_source="visitor", quota=quota)
+    _ok(app.run())
+    _ok(app.switch_page("views/evaluation_lab.py").run())
+    assert not app.toggle  # live benchmarks only in local mode
+    assert "Benchmarks are simulated in the public app" in _shown(app)
+    _ok(app.switch_page("views/dashboard.py").run())
+    assert "Live mode on your own Groq key" in _shown(app)

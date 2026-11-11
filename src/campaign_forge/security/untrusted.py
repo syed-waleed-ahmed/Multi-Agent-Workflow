@@ -13,6 +13,20 @@ outputs are schema-validated, and runs are budget-bounded (see docs/SECURITY.md)
 Each block's delimiters carry a tag derived from the block's content hash. A
 payload therefore cannot contain a matching end marker: forging one would require
 knowing the hash of the payload that contains it.
+
+Before framing, the payload is neutralised (Session 9, D6 hardening):
+
+* **Invisible characters are removed:** zero-width and bidirectional controls,
+  the soft hyphen, and Unicode "tag" characters, which some models read as ASCII
+  text a human cannot see ("ASCII smuggling"). Joiners (U+200C and U+200D) stay,
+  because scripts and emoji need them.
+* **Frame look-alikes are broken up:** ``<<<`` and ``>>>``, and the bare phrases
+  "BEGIN UNTRUSTED DATA" and "END UNTRUSTED DATA", so a payload cannot imitate a
+  boundary even without the brackets.
+* **Chat-template tokens are broken up:** ``<|...|>`` and ``[INST]``.
+
+Only the framed copy sent to the model changes. Stored artifacts and the user's
+inputs are left as they are.
 """
 
 from __future__ import annotations
@@ -29,6 +43,14 @@ UNTRUSTED_DATA_POLICY = (
 
 _LABEL_RE = re.compile(r"[^A-Za-z0-9 _-]+")
 _MAX_LABEL_LEN = 60
+#: Characters that hide or reorder text. Written as escapes: the source stays ASCII.
+_INVISIBLE_RE = re.compile(
+    "[\u00ad\u061c\u180e\u200b\u200e\u200f\u202a-\u202e\u2060-\u2064"
+    "\u2066-\u2069\ufeff\U000e0000-\U000e007f]"
+)
+_MARKER_PHRASE_RE = re.compile(r"(?i)\b(?:begin|end)\s+untrusted\s+data\b")
+_INST_TOKEN_RE = re.compile(r"(?i)\[/?inst\]")
+MARKER_REMOVED = "[marker text removed]"
 
 
 def _clean_label(label: str) -> str:
@@ -36,9 +58,18 @@ def _clean_label(label: str) -> str:
     return cleaned or "data"
 
 
+def strip_invisible(text: str) -> str:
+    """``text`` without zero-width, bidirectional-control or Unicode tag characters."""
+    return _INVISIBLE_RE.sub("", text)
+
+
 def neutralise_markers(text: str) -> str:
-    """Break up delimiter-like sequences so content cannot imitate a frame boundary."""
-    return text.replace("<<<", "< < <").replace(">>>", "> > >")
+    """Make ``text`` safe to frame: no hidden characters, frame look-alikes or chat tokens."""
+    visible = strip_invisible(text)
+    unbracketed = visible.replace("<<<", "< < <").replace(">>>", "> > >")
+    unmarked = _MARKER_PHRASE_RE.sub(MARKER_REMOVED, unbracketed)
+    detokenised = unmarked.replace("<|", "< |").replace("|>", "| >")
+    return _INST_TOKEN_RE.sub(lambda m: m.group(0)[0] + " " + m.group(0)[1:], detokenised)
 
 
 def frame_untrusted(content: str, *, label: str) -> str:

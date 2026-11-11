@@ -172,6 +172,10 @@ class CapacityError(CampaignForgeError):
     """Raised when a limit on concurrent work is reached; retrying later may succeed."""
 
 
+class LiveQuotaError(CapacityError):
+    """Raised when a public live-mode cap is used up (per session or per day)."""
+
+
 class RunNotFoundError(NotFoundError):
     """Raised when a run id is unknown in the given scope."""
 

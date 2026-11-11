@@ -35,6 +35,7 @@ from ..orchestration.definition import WorkflowDefinition
 from ..orchestration.engine import WorkflowEngine
 from ..orchestration.state import RunRecord
 from ..providers.base import ModelClass
+from ..security.redaction import redact
 
 #: Price per 1,000 tokens by provider. Every supported provider is used on its free
 #: tier, so the estimate is $0.00; a paid tier would need its own price here.
@@ -280,7 +281,8 @@ def run_case(
             completed=False,
             passed=False,
             duration_s=round(clock() - start, 2),
-            error=f"{type(exc).__name__}: {exc}",
+            # Reports are saved and may be committed: never with a key in them.
+            error=redact(f"{type(exc).__name__}: {exc}", engine.router.secret_values),
         )
 
 

@@ -33,6 +33,7 @@ from ..providers.base import (
 )
 from ..providers.router import ProviderRouter
 from ..providers.structured import run_structured
+from ..security.redaction import redact
 from ..tools.base import EvidenceStore, ToolBox
 from .agent import AgentSpec
 from .budget import Budget, BudgetLimits
@@ -281,7 +282,7 @@ class RunContext:
                         type=EventType.WARNING,
                         run_id=self.run_id,
                         step_id=self.step_id,
-                        message=f"{spec.id}: {tool.spec.id} search failed: {exc}",
+                        message=redact(f"{spec.id}: {tool.spec.id} search failed: {exc}"),
                     )
                 )
                 continue
