@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security problem
+    url: https://github.com/syed-waleed-ahmed/Multi-Agent-Workflow/blob/main/SECURITY.md
+    about: Report vulnerabilities privately, as described in SECURITY.md.
+  - name: Try the public demo
+    url: https://campaign-forge.streamlit.app/
+    about: Simulated by default, no key needed.

@@ -1,0 +1,73 @@
+name: Bug report
+description: Something does not work as documented.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Never paste an API key, even an expired one.
+        For a security problem, follow SECURITY.md instead of opening an issue.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did it happen?
+      options:
+        - Public demo (campaign-forge.streamlit.app)
+        - Web app, run locally
+        - CLI
+        - HTTP API
+        - Python library
+        - Evaluation Lab or evals/
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`campaign-forge --version`, or the commit you are on."
+      placeholder: 2.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Provider or mode
+      options:
+        - Demo or simulated (CF_PROVIDER=fake)
+        - Groq
+        - Gemini
+        - Mistral
+        - Cloudflare
+        - Other OpenAI-compatible endpoint
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest brief, workflow and command that show the problem.
+      placeholder: |
+        1. campaign-forge execute ad-pack --brief brief.json
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Error messages and the run id if there is one. Remove any secret first.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Windows 11, Python 3.12

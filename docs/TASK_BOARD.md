@@ -237,6 +237,14 @@ Granular tasks for each session.
 - [x] S9-10 Push, reboot the public demo, and verify demo mode and the live-mode controls in the browser. A live run on the owner's key needs the owner to add the key to the app's Streamlit secrets (verified locally on the owner's key; on the public app, waiting on the owner).
 - [-] S9-11 OpenTelemetry (optional in the roadmap): not added. It needs new dependencies and an exporter with nowhere free to send it; the event stream and per-call usage already trace runs (ADR-037)
 
-## Session 10
+## Session 10 - Release and GitHub presentation
 
-Scope and acceptance criteria are in [ROADMAP.md](ROADMAP.md). Granular tasks are written at the start of the session.
+- [ ] S10-01 README rewritten around the 20 required sections, with Mermaid diagrams for the system, agent orchestration, campaign execution, the session lifecycle, providers and deployment. No fictional metrics.
+- [ ] S10-02 Screenshots of the public demo (`docs/images/`) and an example gallery (`docs/EXAMPLES.md`) built from real exports, each labeled live or simulated
+- [ ] S10-03 Community files: issue templates and a pull-request template, `CODE_OF_CONDUCT.md`, a root `SECURITY.md` (vulnerability reporting), an updated `CONTRIBUTING.md`
+- [ ] S10-04 Deployment documentation (`docs/DEPLOYMENT.md`): Streamlit Community Cloud step by step, secrets, the reboot after a code push, free-plan limitations, and the local and Docker alternatives
+- [ ] S10-05 Final live smoke test: a live `full-campaign` run on Groq's free tier, and the public demo checked in a browser
+- [ ] S10-06 Definition-of-done audit (master prompt, sections A-E): each criterion with its evidence, and any gap with its blocker
+- [ ] S10-07 Release `2.0.0`: version, classifier, changelog. The tag and the GitHub release need the owner's click (the session's permission policy blocks public surfaces).
+- [ ] S10-08 Owner actions prepared in the browser: Streamlit secrets for the demo's key (the owner pastes the key), and the release pages for `v2.0.0b1`, `v2.0.0rc1` and `v2.0.0`
+- [ ] S10-09 Status docs, session log, and the final gates

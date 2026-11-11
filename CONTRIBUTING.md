@@ -4,6 +4,19 @@ Thanks for your interest in improving Campaign Forge. This guide covers the
 development setup, the standards the project holds itself to, and the workflow
 for submitting changes.
 
+Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Security
+problems are reported privately, as described in [SECURITY.md](SECURITY.md), not
+in an issue.
+
+## Ground rules
+
+- **Free to run.** Nothing may require a paid service, a card or a paid model by
+  default, and nothing may switch to one silently ([`docs/FREE_TIER_POLICY.md`](docs/FREE_TIER_POLICY.md)).
+- **Honest numbers.** Benchmarks, metrics and claims in the docs come from real,
+  dated runs ([`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)). Simulated output is always
+  labeled as simulated.
+- **No secrets anywhere.** Not in code, tests, fixtures, issues or screenshots.
+
 ## Getting started
 
 1. Fork and clone the repository.
@@ -14,10 +27,11 @@ for submitting changes.
    source .venv/bin/activate          # Windows: .venv\Scripts\activate
    ```
 
-3. Install the package with development dependencies:
+3. Install the package with development dependencies (add `ui` and `api` to run
+   the web app, the HTTP API and their tests):
 
    ```bash
-   pip install -e ".[dev]"
+   pip install -e ".[dev,ui,api]"
    ```
 
 4. (Optional but recommended) install the pre-commit hooks:
@@ -35,12 +49,25 @@ opening a pull request, make sure every quality gate passes locally:
 ruff check .            # lint
 ruff format .           # format
 mypy src                # strict type-check
-pytest                  # tests
+pytest                  # tests, including the Streamlit AppTest suite (90% coverage floor)
 python evals/run_eval.py --offline   # end-to-end eval smoke (no API key)
+campaign-forge bench full-campaign --offline --dataset injection \
+  --baseline src/campaign_forge/evaluation/baselines/full-campaign.injection.json
 ```
 
 These are the same checks that run in continuous integration on Python 3.10,
-3.11, 3.12, and 3.13. A pull request will not be merged unless all of them pass.
+3.11, 3.12, and 3.13, next to a Docker smoke test of the API and a `pip-audit`
+of the dependencies. A pull request will not be merged unless all of them pass.
+
+**Baselines.** CI compares three offline benchmarks with the baselines in
+`src/campaign_forge/evaluation/baselines/`. If your change deliberately changes a
+workflow's calls or tokens, rerun the benchmark with `--save-baseline` and say why
+in the pull request.
+
+**The web app.** `streamlit run app/streamlit_app.py` starts it in demo mode with no
+key. Pages are tested headlessly with Streamlit's `AppTest` (`tests/test_app.py`).
+CI runs Python 3.11+ with a newer Streamlit than 3.10 can install, so type-check UI
+changes on 3.11 too if you can.
 
 The `pytest` suite is fully mocked and proves the plumbing; the eval harness in
 `evals/` measures real-world behaviour on a diverse, adversarial brief corpus
@@ -107,8 +134,9 @@ module may import only from its own layer or a lower one.
 - Update the documentation (`README.md`, `docs/ARCHITECTURE.md`) and
   `CHANGELOG.md` when your change affects behaviour or public API.
 
-## Reporting bugs
+## Reporting bugs and proposing features
 
-Open an issue with a minimal reproduction, the expected behaviour, the actual
-behaviour, and your environment (OS and Python version). Never include real API
-keys or other secrets in an issue.
+Use the issue templates: **Bug report** asks for the version, the provider or
+mode, a minimal reproduction, and the expected and actual behaviour. **Feature
+request** asks for the problem first. Never include real API keys or other secrets
+in an issue.

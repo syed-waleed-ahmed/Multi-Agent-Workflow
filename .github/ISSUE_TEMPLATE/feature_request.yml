@@ -1,0 +1,43 @@
+name: Feature request
+description: Propose a new agent, workflow, provider or capability.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Campaign Forge stays free to run. Proposals that require a paid service by default cannot be accepted.
+        A paid option that is off by default and never activated silently can be discussed.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: The proposal
+      description: For an agent, give its inputs, its output artifact, and what code must compute instead of the model.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Agent or workflow template
+        - Provider or model routing
+        - Research tools
+        - Memory
+        - Web app
+        - HTTP API
+        - Evaluation
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

@@ -29,6 +29,7 @@ Durations include waits for free-tier rate limits, so on this tier they measure 
 
 | Date (UTC) | Workflow | Dataset and cases | Result | Calls | Tokens | Duration | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-11 15:42 | `full-campaign` | the gallery brief (EcoSip, four channels) | **Pass** (all critical checks), 1 warning | 18 | 28,592 | 233.7 s | Session 10 final smoke test with `campaign-forge execute`; critic review 0.75. Warning: the optional ads step failed, because a Google Ads headline was 37 characters (limit 30) after one repair. [Output](examples/full-campaign-live.md) |
 | 2026-11-11 14:19 | `seo-content-pack` | corpus: `baseline-ecommerce` | **Pass** (all checks) | 11 | 11,792 | 226.5 s | Keywords, plan, article (outline and sections), audit, safety review. [Report](benchmarks/2026-11-11-seo-content-pack-live.json) |
 | 2026-11-11 14:14 | `landing-page` | corpus: `baseline-ecommerce` | **Pass** (all checks) | 12 | 13,577 | 273.5 s | Critic review score 0.78; 1 retry. [Report](benchmarks/2026-11-11-landing-page-live.json) |
 | 2026-11-11 13:11 | `full-campaign` | corpus: `baseline-ecommerce` | **Pass** (all checks, no warnings) | 19 | 27,129 | 374.8 s | Live run 5, with cap-aware routing. One truncated answer was recovered (`audience_research`). |

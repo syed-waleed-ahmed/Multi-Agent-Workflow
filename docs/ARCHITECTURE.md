@@ -8,15 +8,16 @@ evaluating, extending, or operating the system.
 
 The document has two parts:
 
-- **Part I - Current system (v1.1.0, implemented).** Sections 1-15 describe the code
-  as it exists today. They were checked against the source in the Session 0 audit
-  ([PROJECT_AUDIT.md](PROJECT_AUDIT.md)).
-- **Part II - Target architecture (Campaign Forge 2.0, planned).** Sections T1-T15
-  describe the design that the 2.0 sessions implement step by step. Part II is
-  **not implemented yet** unless [BUILD_STATUS.md](BUILD_STATUS.md) says otherwise.
+- **Part I - The v1.1.0 system.** Sections 1-15 describe the original four-agent
+  pipeline, as checked against the source in the Session 0 audit
+  ([PROJECT_AUDIT.md](PROJECT_AUDIT.md)). Its public API and CLI are kept in 2.0, where
+  they run on the 2.0 engine (the `classic-campaign` workflow and the `legacy.*` agents).
+- **Part II - Campaign Forge 2.0 (implemented in 2.0.0).** Sections T1-T15 are the 2.0
+  design. Its implementation status table records which session built each component.
+  Where the implementation departed from the design, the notes and the ADRs in
+  [DECISIONS.md](DECISIONS.md) say how and why.
 
-As 2.0 components land, Part I is folded into Part II. Keeping both parts until then
-is recorded as ADR-014 in [DECISIONS.md](DECISIONS.md).
+Keeping both parts is recorded as ADR-014.
 
 # Part I - Current system (v1.1.0)
 
@@ -352,9 +353,9 @@ configurable pass-rate gate.
 
 ---
 
-# Part II - Target architecture: Campaign Forge 2.0 (in progress)
+# Part II - Campaign Forge 2.0 (implemented in 2.0.0)
 
-> Status: designed in Session 0; Sessions 1 and 2 implemented (2026-11-10).
+> Status: designed in Session 0 (2026-11-10); implemented in Sessions 1-10 and released as 2.0.0 (2026-11-11).
 > ADR numbers refer to [DECISIONS.md](DECISIONS.md). Session numbers refer to
 > [ROADMAP.md](ROADMAP.md).
 
@@ -379,6 +380,7 @@ configurable pass-rate gate.
 | Evaluation Lab: datasets, benchmarks, baselines, `campaign-forge bench`, app page (ADR-036) | **Implemented** (S8) | `campaign_forge.services.lab`, `campaign_forge.evaluation.datasets` |
 | Streamlit app (T10): 16 navigation entries, demo and local modes, plan approval, run inspector, brand memory, workflow builder; Markdown/JSON/HTML exports (ADR-033) | **Implemented** (S6); demo live at https://campaign-forge.streamlit.app/ | `campaign_forge.ui`, `campaign_forge.exports`, `app/` |
 | FastAPI service (T10): 13 master-prompt endpoints plus approval and listings, API-key tenancy, limits, Docker (ADR-034) | **Implemented** (S7) | `campaign_forge.api`, `campaign_forge.services` |
+| Planner in the CLI: `campaign-forge plan`, `execute auto` (the model planner chooses among validated templates and optional steps, with a rules fallback) | **Implemented** (S10) | `campaign_forge.orchestration.planner`, `campaign_forge.cli_runs` |
 | Public live mode: owner or visitor Groq key, isolated settings, caps per run, session, day and concurrency; redaction wherever errors are recorded; injection hardening; `pip-audit` (ADR-037) | **Implemented** (S9) | `campaign_forge.services.live`, `campaign_forge.ui.session`, `campaign_forge.security` |
 
 Implementation notes on T5 and T6 (Session 2). These are decisions the design left open; see ADR-022.
