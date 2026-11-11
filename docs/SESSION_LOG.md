@@ -728,3 +728,68 @@ See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
 ### Next session: starting instructions
 
 See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
+
+---
+
+## Session 10 - Release and GitHub presentation (2026-11-11)
+
+**Goal:** a repository and demo a recruiter can clone, understand, test and try; a final live smoke test; release `2.0.0`.
+
+**Owner input:** "Do everything for me, I will click submit only if needed".
+
+### What was done
+
+- **README rewritten** around the 20 required sections. It has six Mermaid diagrams: the system, the session lifecycle, providers, deployment, agent orchestration, and campaign execution. All six render on GitHub (checked in the browser).
+- **Example gallery** (`docs/EXAMPLES.md`):
+  - an unedited live campaign brief from Groq's free tier, including its failed optional step;
+  - the simulated version of the same brief;
+  - the planner's live choices;
+  - six screenshots of the public demo.
+
+  Typographic characters in the live output were written as ASCII, and the file says so.
+- **`docs/DEPLOYMENT.md`:** Streamlit Community Cloud step by step, including secrets (written as strings) and the reboot after a code push; free-plan limitations; local and Docker alternatives.
+- **Community files:** issue templates (bug, feature) and a pull-request template; `CODE_OF_CONDUCT.md` (adapted from the Contributor Covenant 2.1); a root `SECURITY.md`; an updated `CONTRIBUTING.md`.
+- **The planner reaches the CLI:** `campaign-forge plan` and `execute auto`. The planners existed and were tested, but no interface used them, so "Planner assigns tasks" was only partly met.
+- **Release `2.0.0`:** version, the Production/Stable classifier, the changelog and the OpenAPI schema.
+- **Definition-of-done audit:** recorded in BUILD_STATUS, with evidence for each criterion.
+
+### Verified
+
+- **Final live smoke test:** `campaign-forge execute full-campaign` on Groq's free tier, run `run-a4ab55169a58`.
+  - The run completed, and every critical check passed.
+  - 18 calls, 28,592 tokens, 234 s; critic review 0.75.
+  - Warning: the optional ads step failed, because a Google Ads headline was 37 characters (limit 30) after one repair.
+- **Live planner:**
+  - the four-channel gallery brief got `full-campaign`;
+  - an email-only win-back brief got `email-sequence`;
+  - each plan came with a stated reason.
+- **Public demo after the release push:** rebooted. It shows "Campaign Forge 2.0.0", and a simulated `full-campaign` run completed (11/11 steps).
+- **CI** green at `74dd7f2`.
+
+### Errors found and fixed during the session
+
+1. **D21: the CLI crashed after a successful live run.** On Windows with output redirected to a file, the console encoding is cp1252. The model's brief contained a non-breaking hyphen (U+2011), and printing it raised `UnicodeEncodeError`, so `execute` exited 1. The run record was safe in its checkpoint. The CLI now replaces unencodable characters in the terminal copy only. A regression test reproduces the crash without the fix.
+2. **The planner was unreachable** from every interface (see "What was done").
+
+### Blocked, and left to the owner
+
+The session's permission policy blocks tags, GitHub releases and repository-settings changes. These were prepared in the browser for the owner's click:
+- the `v2.0.0` release, which creates the tag on publish;
+- the `v2.0.0rc1` and `v2.0.0b1` pre-release pages;
+- the repository's About text.
+
+Entering an API key into a field is also prohibited for the assistant. So the Streamlit secrets were pre-filled except the key, which the owner pastes before choosing Save.
+
+### Tests run
+
+| Command | Result |
+| --- | --- |
+| `ruff check .`, `ruff format --check .` | Pass |
+| `mypy src` (strict, 104 files; also on Python 3.11 with Streamlit 1.67) | Pass |
+| `pytest --cov=campaign_forge` | 794 passed, 97% branch coverage |
+| Offline evals and Lab baselines | 10/10, 10/10; corpus 10/10, injection 14/14, SEO 10/10 |
+| Live: `full-campaign` (CLI), planner on two briefs | Completed (1 warning); 2 plans |
+
+### Next session: starting instructions
+
+See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".

@@ -239,12 +239,14 @@ Granular tasks for each session.
 
 ## Session 10 - Release and GitHub presentation
 
-- [ ] S10-01 README rewritten around the 20 required sections, with Mermaid diagrams for the system, agent orchestration, campaign execution, the session lifecycle, providers and deployment. No fictional metrics.
-- [ ] S10-02 Screenshots of the public demo (`docs/images/`) and an example gallery (`docs/EXAMPLES.md`) built from real exports, each labeled live or simulated
-- [ ] S10-03 Community files: issue templates and a pull-request template, `CODE_OF_CONDUCT.md`, a root `SECURITY.md` (vulnerability reporting), an updated `CONTRIBUTING.md`
-- [ ] S10-04 Deployment documentation (`docs/DEPLOYMENT.md`): Streamlit Community Cloud step by step, secrets, the reboot after a code push, free-plan limitations, and the local and Docker alternatives
-- [ ] S10-05 Final live smoke test: a live `full-campaign` run on Groq's free tier, and the public demo checked in a browser
-- [ ] S10-06 Definition-of-done audit (master prompt, sections A-E): each criterion with its evidence, and any gap with its blocker
-- [ ] S10-07 Release `2.0.0`: version, classifier, changelog. The tag and the GitHub release need the owner's click (the session's permission policy blocks public surfaces).
-- [ ] S10-08 Owner actions prepared in the browser: Streamlit secrets for the demo's key (the owner pastes the key), and the release pages for `v2.0.0b1`, `v2.0.0rc1` and `v2.0.0`
-- [ ] S10-09 Status docs, session log, and the final gates
+- [x] S10-01 README rewritten around the 20 required sections, with Mermaid diagrams for the system, agent orchestration, campaign execution, the session lifecycle, providers and deployment. No fictional metrics.
+- [x] S10-02 Screenshots of the public demo (`docs/images/`) and an example gallery (`docs/EXAMPLES.md`) built from real exports, each labeled live or simulated
+- [x] S10-03 Community files: issue templates and a pull-request template, `CODE_OF_CONDUCT.md`, a root `SECURITY.md` (vulnerability reporting), an updated `CONTRIBUTING.md`
+- [x] S10-04 Deployment documentation (`docs/DEPLOYMENT.md`): Streamlit Community Cloud step by step, secrets, the reboot after a code push, free-plan limitations, and the local and Docker alternatives
+- [x] S10-05 Final live smoke test: a live `full-campaign` run on Groq's free tier, and the public demo checked in a browser
+- [x] S10-06 Definition-of-done audit (master prompt, sections A-E): each criterion with its evidence, and any gap with its blocker
+- [x] S10-07 Release `2.0.0`: version, classifier, changelog. The tag and the GitHub release need the owner's click (the session's permission policy blocks public surfaces).
+- [x] S10-08 Owner actions prepared in the browser: Streamlit secrets for the demo's key (the owner pastes the key), and the release pages for `v2.0.0b1`, `v2.0.0rc1` and `v2.0.0`
+- [x] S10-09 Status docs, session log, and the final gates
+- [x] S10-10 The planner reaches the CLI (`campaign-forge plan`, `execute auto`), closing the definition-of-done item "Planner assigns tasks"; verified live on two briefs
+- [x] S10-11 D21 (found by the live smoke test): the CLI no longer crashes on characters a Windows console cannot encode
