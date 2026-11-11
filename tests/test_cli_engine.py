@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -173,3 +175,42 @@ def test_fake_provider_mode_runs_the_full_campaign_offline(
     out = capsys.readouterr().out
     assert code == 0
     assert "SIMULATED" in out and "Final brief" in out
+
+
+def test_d21_a_console_that_cannot_encode_the_brief_does_not_crash(
+    env: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Found by the Session 10 live smoke test: Windows, stdout redirected to a file
+    # (cp1252), and a model answer with a non-breaking hyphen (U+2011).
+    hyphen = chr(0x2011)  # built in code: the source stays ASCII
+    monkeypatch.setitem(SCRIPT, "legacy.manager", f"{MANAGER_TEXT}\n\nTrail{hyphen}ready.")
+    raw = io.BytesIO()
+    narrow = io.TextIOWrapper(raw, encoding="cp1252", errors="strict")
+    monkeypatch.setattr(sys, "stdout", narrow)
+    assert cli.main(["execute", "classic-campaign", "--brief", str(env["brief"])]) == 0
+    narrow.flush()
+    assert b"Trail?ready" in raw.getvalue()
+
+
+def test_the_planner_chooses_the_workflow(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("CF_PROVIDER", "fake")  # the offline responder answers the planner
+    monkeypatch.setenv("CF_RUNS_DIR", str(tmp_path / "runs"))
+    brief = tmp_path / "brief.json"
+    brief.write_text(json.dumps(BRIEF), encoding="utf-8")
+
+    assert cli.main(["plan", "--brief", str(brief), "--json"]) == 0
+    plan = _json(capsys)
+    assert (plan["workflow"], plan["planner"]) == ("full-campaign", "llm")
+    assert "report" in plan["steps"] and plan["skipped"] == []
+    assert cli.main(["plan", "--brief", str(brief), "--rules", "--json"]) == 0
+    assert _json(capsys)["planner"] == "rules"
+    assert cli.main(["plan", "--brief", str(brief)]) == 0
+    assert "execute auto" in capsys.readouterr().out
+
+    assert cli.main(["execute", "auto", "--brief", str(brief)]) == 0
+    out = capsys.readouterr().out
+    assert "Plan (llm): full-campaign" in out and "Status: completed" in out
+    assert cli.main(["execute", "auto", "--brief", str(brief), "--json"]) == 0
+    assert _json(capsys)["status"] == "completed"

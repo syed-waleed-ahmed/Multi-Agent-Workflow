@@ -32,10 +32,12 @@ from .cli_memory import build_memory, load_brand
 from .config import Settings
 from .exceptions import ConfigurationError, MemoryStoreError
 from .loaders import load_briefs
+from .models import CampaignBrief
 from .orchestration.definition import WorkflowDefinition, load_definition, validate_definition
 from .orchestration.engine import RunResult
 from .orchestration.factory import build_engine as build_engine  # patched by tests
 from .orchestration.history import remember_run
+from .orchestration.planner import ExecutionPlan, LLMPlanner, RuleBasedPlanner
 from .orchestration.state import RunRecord, RunStatus
 from .orchestration.templates import BUILTIN_TEMPLATES, default_registry, get_template
 from .tools import load_sources
@@ -52,6 +54,10 @@ _STATUS_STYLE = {
     "failed": "red",
     "cancelled": "red",
 }
+
+
+#: ``execute auto`` lets the planner choose the workflow.
+AUTO_WORKFLOW = "auto"
 
 
 def add_engine_commands(subparsers: Any, common: Any) -> None:
@@ -76,8 +82,21 @@ def add_engine_commands(subparsers: Any, common: Any) -> None:
     common(wf_validate)
     wf_validate.set_defaults(func=cmd_workflows_validate, needs_settings=True)
 
+    plan = subparsers.add_parser(
+        "plan", help="Let the planner choose a workflow and its optional steps for a brief"
+    )
+    plan.add_argument("--brief", type=Path, required=True, help="JSON file with one brief")
+    plan.add_argument(
+        "--rules", action="store_true", help="Deterministic rules only (no model call)"
+    )
+    common(plan)
+    plan.set_defaults(func=cmd_plan, needs_settings=True)
+
     execute = subparsers.add_parser("execute", help="Run a workflow with checkpoints")
-    execute.add_argument("workflow", help="Template id or path to a JSON definition")
+    execute.add_argument(
+        "workflow",
+        help=f"Template id, path to a JSON definition, or '{AUTO_WORKFLOW}' (the planner chooses)",
+    )
     execute.add_argument("--brief", type=Path, required=True, help="JSON file with one brief")
     execute.add_argument(
         "--auto-resume",
@@ -188,14 +207,68 @@ def cmd_workflows_validate(args: argparse.Namespace, console: Console, settings:
     return 0
 
 
-def cmd_execute(args: argparse.Namespace, console: Console, settings: Settings) -> int:
-    definition = _resolve_workflow(args.workflow)
-    briefs = load_briefs(args.brief)
+def _one_brief(path: Path, command: str) -> CampaignBrief:
+    briefs = load_briefs(path)
     if len(briefs) != 1:
         raise ConfigurationError(
-            f"{args.brief} holds {len(briefs)} briefs; 'execute' takes exactly one (use 'batch')."
+            f"{path} holds {len(briefs)} briefs; '{command}' takes exactly one (use 'batch')."
         )
-    inputs: dict[str, Any] = {"brief": briefs[0]}
+    return briefs[0]
+
+
+def _make_plan(router: Any, brief: CampaignBrief, *, rules: bool = False) -> ExecutionPlan:
+    """The planner's choice (ADR-002): a registered template and optional steps to skip.
+
+    The model planner can only choose among validated options, and falls back to the
+    rules on any problem; the fallback is recorded in the rationale.
+    """
+    return RuleBasedPlanner().plan(brief) if rules else LLMPlanner(router).plan(brief)
+
+
+def _print_plan(console: Console, plan: ExecutionPlan) -> None:
+    definition = plan.definition
+    skipped = [s.id for s in definition.steps if not s.enabled]
+    console.print(
+        f"[bold]Plan[/bold] ({escape(plan.planner)}): {escape(definition.id)} - "
+        f"{len(definition.steps) - len(skipped)} of {len(definition.steps)} steps"
+        + (f"; skipping {escape(', '.join(skipped))}" if skipped else "")
+    )
+    for line in plan.rationale:
+        console.print(f"  [dim]- {escape(line)}[/dim]")
+
+
+def cmd_plan(args: argparse.Namespace, console: Console, settings: Settings) -> int:
+    brief = _one_brief(args.brief, "plan")
+    plan = _make_plan(build_engine(settings).router, brief, rules=args.rules)
+    if args.json:
+        definition = plan.definition
+        payload = {
+            "workflow": definition.id,
+            "planner": plan.planner,
+            "rationale": list(plan.rationale),
+            "steps": [s.id for s in definition.steps if s.enabled],
+            "skipped": [s.id for s in definition.steps if not s.enabled],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        _print_plan(console, plan)
+        console.print(
+            f"[dim]Run it with: campaign-forge execute {AUTO_WORKFLOW} --brief {args.brief}[/dim]"
+        )
+    return 0
+
+
+def cmd_execute(args: argparse.Namespace, console: Console, settings: Settings) -> int:
+    brief = _one_brief(args.brief, "execute")
+    engine = build_engine(settings)
+    if args.workflow == AUTO_WORKFLOW:
+        plan = _make_plan(engine.router, brief)
+        definition = plan.definition
+        if not args.json:
+            _print_plan(console, plan)
+    else:
+        definition = _resolve_workflow(args.workflow)
+    inputs: dict[str, Any] = {"brief": brief}
     if args.sources:
         if definition.input_kind("sources") is None:
             raise ConfigurationError(f"Workflow {definition.id!r} does not accept --sources.")
@@ -204,7 +277,6 @@ def cmd_execute(args: argparse.Namespace, console: Console, settings: Settings) 
         if definition.input_kind("brand") is None:
             raise ConfigurationError(f"Workflow {definition.id!r} does not accept --brand.")
         inputs["brand"] = load_brand(args.brand, settings)
-    engine = build_engine(settings)
     result = engine.start(definition, inputs)
     if args.auto_resume > 0:
         result = engine.run_until_settled(result, max_resumes=args.auto_resume)

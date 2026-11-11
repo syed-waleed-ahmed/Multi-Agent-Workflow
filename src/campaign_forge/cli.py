@@ -50,7 +50,17 @@ _BRIEF_FIELDS: list[tuple[str, str, str]] = [
     ("goal", "--goal", "Campaign goal"),
     ("tone", "--tone", "Desired tone (e.g. friendly, premium)"),
 ]
-_KNOWN_COMMANDS = {"run", "batch", "agents", "workflows", "execute", "runs", "memory", "bench"}
+_KNOWN_COMMANDS = {
+    "run",
+    "batch",
+    "agents",
+    "workflows",
+    "plan",
+    "execute",
+    "runs",
+    "memory",
+    "bench",
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -298,7 +308,22 @@ def cmd_batch(args: argparse.Namespace, console: Console) -> int:
 # --------------------------------------------------------------------------- #
 # Entry point
 # --------------------------------------------------------------------------- #
+def _tolerant_streams() -> None:
+    """Replace characters the console cannot encode instead of crashing (D21).
+
+    On Windows a redirected stdout uses the ANSI code page (cp1252), which cannot
+    encode characters models often write (a non-breaking hyphen, emoji). Printing
+    the final brief then raised ``UnicodeEncodeError`` after the run had completed.
+    Only the terminal copy is affected: run records and exports keep the exact text.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure) and getattr(stream, "errors", None) == "strict":
+            reconfigure(errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _tolerant_streams()
     raw_args = list(sys.argv[1:] if argv is None else argv)
     # Default to the `run` subcommand unless an explicit command or a top-level
     # help/version flag is given (preserves the interactive `python main.py` UX).
