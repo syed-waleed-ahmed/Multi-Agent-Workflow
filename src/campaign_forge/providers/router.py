@@ -126,8 +126,14 @@ class ProviderRouter:
         model_class: ModelClass | None = None,
         provider_preference: str | None = None,
         override: AgentRoute | None = None,
+        output_tokens: int | None = None,
     ) -> ResolvedRoute:
         """Resolve the route for an agent and enforce the FREE_ONLY policy.
+
+        ``output_tokens`` is how long the answer may be. When the model would come
+        from the profile's defaults and its per-request output cap is lower, the
+        profile's strong model is used instead (same provider and tier), rather
+        than truncating the answer (D19). Explicitly configured models never change.
 
         Raises:
             ProviderNotAllowedError: if policy refuses the provider.
@@ -154,8 +160,6 @@ class ProviderRouter:
             ),
             None,
         )
-        if model is None:
-            model = self._default_model(profile, model_class)
         temperature = next(
             (layer.temperature for layer in layers if layer.temperature is not None),
             settings.temperature,
@@ -164,9 +168,42 @@ class ProviderRouter:
             (layer.max_tokens for layer in layers if layer.max_tokens is not None),
             settings.max_tokens,
         )
+        if model is None:
+            model = self._default_model(profile, model_class)
+            if model == profile.model_for(model_class) and not self._model_pinned(profile):
+                model = self._fit_output(profile, model, output_tokens or max_tokens, agent_id)
         return ResolvedRoute(
             provider=profile.name, model=model, temperature=temperature, max_tokens=max_tokens
         )
+
+    def _model_pinned(self, profile: ProviderProfile) -> bool:
+        """Whether the user chose this provider's model (CF_PROVIDER_MODELS, or CF_MODEL)."""
+        settings = self._settings
+        if settings.provider_models.get(profile.name):
+            return True
+        return profile.name == self._global_profile.name and "model" in settings.model_fields_set
+
+    def _fit_output(
+        self, profile: ProviderProfile, model: str, output_tokens: int, agent_id: str | None
+    ) -> str:
+        cap = profile.output_cap_for(model)
+        if cap is None or output_tokens <= cap:
+            return model
+        strong = profile.model_for(ModelClass.STRONG)
+        if not strong or strong == model:
+            return model
+        strong_cap = profile.output_cap_for(strong)
+        if strong_cap is not None and strong_cap < output_tokens:
+            return model
+        self._log.info(
+            "%s may need %d output tokens; %s allows %d per request, so it uses %s.",
+            agent_id or "request",
+            output_tokens,
+            model,
+            cap,
+            strong,
+        )
+        return strong
 
     def configured_max_tokens(
         self, agent_id: str | None, override: AgentRoute | None = None
@@ -232,6 +269,7 @@ class ProviderRouter:
             model_class=model_class,
             provider_preference=provider_preference,
             override=override,
+            output_tokens=request.max_tokens,
         )
         try:
             return self._call(route, request, agent_id)
@@ -241,7 +279,10 @@ class ProviderRouter:
                     continue
                 try:
                     fallback_route = self.resolve(
-                        agent_id, model_class=model_class, override=AgentRoute(provider=name)
+                        agent_id,
+                        model_class=model_class,
+                        override=AgentRoute(provider=name),
+                        output_tokens=request.max_tokens,
                     )
                 except ConfigurationError as exc:
                     self._log.warning("Skipping fallback provider %r: %s", name, exc)

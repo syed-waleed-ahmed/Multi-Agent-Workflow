@@ -215,3 +215,37 @@ def test_custom_endpoint_uses_v1_key_when_allowed() -> None:
     provider = router.provider("custom")
     assert isinstance(provider, OpenAICompatibleProvider)
     assert str(provider._client.base_url).startswith("https://llm.example/v1")  # noqa: SLF001
+
+
+def test_long_answers_route_past_a_per_request_output_cap() -> None:
+    """D19: on Groq, qwen3.8 allows 1,000 output tokens per request; gpt-oss-120b has no cap."""
+    from campaign_forge.providers import ModelClass
+
+    settings = Settings(_env_file=None, groq_api_key="gsk_" + "k" * 30)  # type: ignore[call-arg]
+    router = ProviderRouter(settings)
+    standard = ModelClass.STANDARD
+    assert router.resolve("x", model_class=standard, output_tokens=1000).model == "qwen/qwen3.8-27b"
+    assert router.resolve("x", model_class=standard, output_tokens=1500).model == (
+        "openai/gpt-oss-120b"
+    )
+    assert router.resolve("x", model_class=standard).model == "qwen/qwen3.8-27b"  # 800 default
+
+    pinned = Settings(  # type: ignore[call-arg]
+        _env_file=None, groq_api_key="gsk_" + "k" * 30, provider_models={"groq": "qwen/qwen3.8-27b"}
+    )
+    assert ProviderRouter(pinned).resolve("x", output_tokens=4000).model == "qwen/qwen3.8-27b"
+    explicit = Settings(_env_file=None, groq_api_key="gsk_" + "k" * 30, model="my-model")  # type: ignore[call-arg]
+    assert ProviderRouter(explicit).resolve("x", output_tokens=4000).model == "my-model"
+    override = AgentRoute(model="qwen/qwen3.8-27b")
+    assert router.resolve("x", override=override, output_tokens=4000).model == "qwen/qwen3.8-27b"
+
+
+def test_complete_passes_the_answer_length_to_routing() -> None:
+    from campaign_forge.providers import CompletionRequest, FakeProvider
+
+    settings = Settings(_env_file=None, groq_api_key="gsk_" + "k" * 30)  # type: ignore[call-arg]
+    fake = FakeProvider("ok", name="groq")
+    router = ProviderRouter(settings, providers={"groq": fake})
+    router.complete("social_media", CompletionRequest.from_prompts("s", "u", max_tokens=1500))
+    router.complete("critic", CompletionRequest.from_prompts("s", "u", max_tokens=500))
+    assert [r.model for r in fake.requests] == ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"]

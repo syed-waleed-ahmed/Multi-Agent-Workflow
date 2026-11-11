@@ -134,6 +134,9 @@ class LegacyResearchAgent:
         "Audience, pain points, trends and positioning angles from model knowledge.",
         (_BRIEF,),
         RESEARCH_KIND,
+        # Measured live (2026-11-11): the research answer can overflow 1,000 tokens even
+        # when asked to be concise. 1,500 routes it past qwen3.8's per-request cap (D19).
+        max_tokens=1500,
     )
 
     def run(self, inputs: Mapping[str, Artifact], ctx: RunContext) -> AgentOutput:

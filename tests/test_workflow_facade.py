@@ -87,7 +87,7 @@ def test_v1_override_keys_apply_to_legacy_agents(sample_brief: CampaignBrief) ->
     assert result.ok
     by_agent = {r.metadata["agent"]: r.max_tokens for r in fake.requests}
     assert by_agent["legacy.manager"] == 1500
-    assert by_agent["legacy.research"] == 1000  # legacy spec default (ADR-030)
+    assert by_agent["legacy.research"] == 1500  # D19: room for the full answer
 
 
 def test_legacy_client_provider_adapts_v1_clients() -> None:
