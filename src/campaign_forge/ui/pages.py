@@ -18,6 +18,7 @@ Rules every page follows:
 
 from __future__ import annotations
 
+import zlib
 from collections.abc import Callable, Sequence
 from functools import partial
 from typing import Any
@@ -487,7 +488,14 @@ def render_inspector() -> None:
         return f"{run_id} - {record.definition.name} - {record.status.value.replace('_', ' ')}"
 
     index = ids.index(selected) if selected in ids else 0
-    run_id = _choose("Run", ids, index=index, format_func=label, key="inspector-run")
+    # Streamlit identifies a keyed select box by its key alone, and the browser keeps
+    # showing the labels it first received: a run that finished in the background still
+    # read "running". A key that changes with the labels makes it redraw them; the
+    # selection survives through SELECTED_RUN.
+    signature = zlib.crc32("\n".join(label(i) for i in ids).encode("utf-8"))
+    run_id = _choose(
+        "Run", ids, index=index, format_func=label, key=f"inspector-run-{signature:08x}"
+    )
     if run_id is None:
         return
     st.session_state[SELECTED_RUN] = run_id

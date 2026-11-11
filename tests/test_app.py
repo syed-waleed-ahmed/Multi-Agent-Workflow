@@ -100,6 +100,11 @@ def _follow(at: AppTest, page: str) -> AppTest:
     return at.switch_page(f"views/{page}")
 
 
+def _run_picker(at: AppTest) -> Any:
+    """The Run Inspector's run picker (its key changes with the run labels)."""
+    return next(s for s in at.selectbox if s.label == "Run")
+
+
 def _session(at: AppTest) -> AppSession:
     session = at.session_state[SESSION_KEY]
     assert isinstance(session, AppSession)
@@ -276,10 +281,15 @@ def test_background_runs_show_live_progress(app: AppTest, tmp_path: Path) -> Non
     assert "Local mode" in app.sidebar.info[0].value
     _ok(app.switch_page("views/inspector.py").run())
     assert "Running" in app.info[0].value
+    running = _run_picker(app)
     gate.set()
     assert session.service.wait(30)
     _ok(app.run())
     assert "completed" in _texts(app)
+    # The picker is rebuilt with the new status, so the browser cannot keep "running".
+    done = _run_picker(app)
+    assert done.key != running.key and done.value == run_id
+    assert any("completed" in o for o in done.options)
 
 
 # --------------------------------------------------------------------------- #
@@ -329,7 +339,7 @@ def test_history_lists_runs_campaigns_and_notes(app: AppTest) -> None:
     assert session.memory.list_documents(session.scope, kind="note") == []
     _ok(app.button(key="history-open").click().run())
     assert app.title[0].value == "Run Inspector"
-    assert app.selectbox(key="inspector-run").value == run_id
+    assert _run_picker(app).value == run_id
 
 
 def test_workflow_builder_validates_and_hands_over_to_new_run(app: AppTest) -> None:
