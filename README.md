@@ -9,7 +9,7 @@
 [![Lint: ruff](https://img.shields.io/badge/lint-ruff-261230)](https://github.com/astral-sh/ruff)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**Try it now:** [campaign-forge.streamlit.app](https://campaign-forge.streamlit.app/). Demo mode needs no key and is labeled SIMULATED. Live mode runs on your own free Groq key.
+**Try it now:** [campaign-forge.streamlit.app](https://campaign-forge.streamlit.app/). Demo mode needs no key and is labeled SIMULATED. Live mode runs on Groq's free tier, on the demo's own key (a few runs per day) or on your own free key.
 
 ![The Run Inspector: a full campaign's workflow graph and metrics](docs/images/run-inspector.jpg)
 
@@ -462,7 +462,7 @@ Open **[campaign-forge.streamlit.app](https://campaign-forge.streamlit.app/)**. 
 4. **Download** the campaign as Markdown, JSON or HTML.
 5. **Brand Memory.** Edit the sample brand, or add your own, then run `full-campaign` with it to get a brand check.
 6. **Evaluation Lab.** Run the corpus or the injection set and compare the result with the baseline.
-7. **Live mode** (Settings and Health). Paste your own free Groq key to run the same workflows on a real model. The key stays in your browser session's memory, and every run is capped. The demo's own key is offered only when the owner enables it.
+7. **Live mode** (Settings and Health). Run the same workflows on a real model. Use **Go live on the demo's key** (3 runs per visit, 5 per day for everyone), or paste your own free Groq key, which stays in your browser session's memory. Every run is capped.
 
 **What demo mode is, and is not.** Demo output comes from a deterministic responder. It shows the structure, the checks and the workflow, not the quality of a model, and every page says so. For real output, use live mode, or see the [example gallery](docs/EXAMPLES.md).
 
@@ -552,7 +552,7 @@ Stated plainly, with the reasons:
   - Runs live in the browser session, and are gone when it ends.
   - Live-mode counters reset when the app restarts.
   - The app sleeps after about 12 idle hours, so the first visit after that waits for a cold start.
-  - The demo's own key is offered only when the owner enables it.
+  - The demo's own key allows a few live runs per day for everyone; a reboot resets that count.
 - **Single node.** The API runs workflows in background threads in one process; scaling out would need a shared store and queue. Postgres memory (ADR-031) and OpenTelemetry (ADR-037) are not implemented.
 - **The simulated responder is generic.** Demo-mode text repeats itself on purpose: it exercises the contracts, not creativity.
 
