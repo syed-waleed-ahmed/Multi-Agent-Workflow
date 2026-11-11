@@ -661,3 +661,70 @@ See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
 ### Next session: starting instructions
 
 See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
+
+---
+
+## Session 9 - Security hardening and live mode (2026-11-11)
+
+**Goal:** the public demo's live mode within caps that protect a free quota, keys that never leave the session, the remaining injection hardening (D6), and a dependency audit.
+
+**Owner input:** "done now start, and use claude in chrome". The `v2.0.0rc1` tag was confirmed on GitHub at `4c8b726`.
+
+### What was done
+
+- **Live mode** (ADR-037, `services/live.py`, `ui/session.py`):
+  - Groq with a visitor's own key, or with the deployment's key when the owner opts in (`CF_LIVE_OWNER_KEY`);
+  - live sessions use **isolated settings** that read no environment, so the deployment's other keys, fallbacks and overrides are unreachable;
+  - caps: 25 calls, 30,000 tokens and 20 minutes per run (tightening the plan, and applied again at start); 2 live runs at once per process, through one `RunSlots` shared by every browser session; 3 owner-key runs per session and 5 per UTC day; refused starts are not counted;
+  - visitor keys must be Groq-shaped, so key-pattern redaction always matches; they are held only by the live session; "Forget my key" drops it;
+  - the Evaluation Lab stays simulated in the public app.
+- **Redaction wherever a message is recorded:**
+  - the engine (step errors, pause details, events);
+  - the run service (background errors);
+  - the Lab (case errors, since reports may be committed);
+  - tool-failure notes;
+  - the app now configures the redacting log handler.
+- **D6 hardening.**
+  - Before framing, the text loses invisible and bidirectional characters (including Unicode tag characters), bare "BEGIN/END UNTRUSTED DATA" phrases and chat-template tokens.
+  - The canary check removes invisible characters and NFKC-normalises before matching.
+  - Six new injection cases (14 in all), and the offline baseline was refreshed.
+- **`pip-audit` in CI** over the pinned runtime dependencies of every extra.
+- **Not done: OpenTelemetry** (optional). It needs new dependencies and an exporter with nowhere free to send it (ADR-037).
+
+### Verified
+
+- **In a real browser, locally, on the owner's key** (the app read it from `.env`; it was never typed or displayed):
+  - "Go live on the demo's key" showed the caps and "Live runs left: 3".
+  - The `ad-pack` plan showed 30,000 tokens (the template allows 60,000).
+  - The run completed on Groq: 4/4 steps, 11 calls, 16,902 tokens. The sidebar then showed 2 runs left.
+  - An invalid key was refused without being echoed, and the field cleared.
+  - The server log held no key-shaped string. Its rate-limit warnings went through the redacting handler.
+- **Public demo after the push:**
+  - rebooted;
+  - the dashboard links to live mode;
+  - Settings offers only the bring-your-own-key form, as expected with no secrets configured.
+
+  A live run on the demo's key there waits for the owner's Streamlit secrets.
+- **CI** green at `1d42c3f`: Python 3.10-3.13, Docker, and `pip-audit` ("No known vulnerabilities found").
+
+### Errors found and fixed during the session
+
+1. **A key inside an unexpected error reached the run record.** Found by the new no-leak test. The provider redacted errors from the OpenAI SDK, but the engine stored any other exception's text as it was. That record is shown in the inspector, exported, and saved in the CLI's checkpoints. The engine, the run service, the Lab and tool notes now redact every message they record.
+2. **A report quoting the user's own brand profile tripped the injection canaries.** Found by the new brand-memory case. The report's deliverables appendix renders the brand profile verbatim, so injected text in the profile looked like an obeyed instruction. The canary check now reads only the report's narrative. The appendices are checked as their own artifacts.
+3. **Passing the deployment's model through pinned it.** Found in the browser: the health page showed qwen for the strong class. Setting `model` explicitly marks it as the user's choice, which turns off cap-aware routing (ADR-035), so long live answers would truncate again (D19). Only settings the deployment set explicitly now carry over.
+4. **The health page showed the strong model for every class.** It resolved models with the configured `max_tokens`, which triggers cap-aware routing. It now shows class defaults, as the Lab has since Session 8.
+5. **The app never configured logging.** Package warnings reached the server log through Python's last-resort handler, unredacted. The app now configures the redacting handler once per process.
+
+### Tests run
+
+| Command | Result |
+| --- | --- |
+| `ruff check .`, `ruff format --check .` | Pass |
+| `mypy src` (strict, 104 files; also on Python 3.11 with Streamlit 1.67) | Pass |
+| `pytest --cov=campaign_forge` | 792 passed, 97% branch coverage |
+| Offline evals and benchmarks | 10/10, 10/10, and against baselines: corpus 10/10, injection 14/14, SEO 10/10 |
+| Live, local browser, owner's key: `ad-pack` | Completed, 11 calls, 16,902 tokens |
+
+### Next session: starting instructions
+
+See [BUILD_STATUS.md](BUILD_STATUS.md), "Next session: starting instructions".
