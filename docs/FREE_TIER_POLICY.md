@@ -134,9 +134,9 @@ When no source is available, agents run in labeled **assumptions mode** (see [AR
 
 | Mode | Provider | Key | Labeling | Limits |
 | --- | --- | --- | --- | --- |
-| **Demo** (default) | `FakeProvider` with recorded fixtures | None | Every output is marked **SIMULATED**; fixture provenance is shown | None needed |
-| **Live, owner key** | Groq (owner's free key from Streamlit secrets) | Owner's | Shows provider, model and data-use notice | Per-session and daily caps (see [SECURITY.md](SECURITY.md)) |
-| **Live, visitor key** | Any supported provider | Visitor's, kept only in session memory | Shows provider, model and that provider's data-use notice | Per-session caps; key never logged or stored |
+| **Demo** (default) | `FakeProvider` with the deterministic offline responder | None | Every output is marked **SIMULATED** | None needed |
+| **Live, owner key** (opt-in: `CF_LIVE_OWNER_KEY`) | Groq (owner's free key from Streamlit secrets) | Owner's | Live-mode badge; Groq data-use notice | Per run, per session (3), per day (5) and concurrency (2); see [SECURITY.md](SECURITY.md) section 5 |
+| **Live, visitor key** | Groq only (ADR-019, ADR-037) | Visitor's, kept only in session memory | Live-mode badge; Groq data-use notice | Per run and concurrency; key never logged or stored |
 
 ---
 

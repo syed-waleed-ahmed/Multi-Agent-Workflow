@@ -6,6 +6,24 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **Live mode in the public app (Session 9, ADR-037).** Real model calls on Groq, with a visitor's own key or, when the owner opts in, the deployment's key.
+  - Each run is capped at 25 calls, 30,000 tokens and 20 minutes, and at most two live runs execute at once.
+  - Runs on the deployment's key are also limited to 3 per session and 5 per day.
+  - Keys stay in session memory, and live sessions never read the deployment's other settings.
+- **`pip-audit` in CI**, over the pinned runtime dependencies of every extra.
+- **Six injection cases** (14 in all): a stored brand profile, hidden characters, chat-template tokens, a bare marker phrase, an exfiltration link, and another language.
+
+### Changed
+
+- **Untrusted-text framing is hardened (D6).** Before framing, it removes invisible and bidirectional characters (including Unicode tag characters), bare "BEGIN/END UNTRUSTED DATA" phrases and chat-template tokens. The injection canary check normalises text first, and reads only a report's narrative: its appendices quote the user's own inputs.
+
+### Fixed
+
+- **A key inside an unexpected error could reach the run record.** Provider errors were already redacted, but other exceptions' text was stored as it was. The engine, the run service and the Evaluation Lab now redact every error message they record. A live-mode test found this.
+- **Logs in the web app.** The app now configures the package logger, so log lines are redacted there too.
+
 ## [2.0.0rc1] - 2026-11-11
 
 The 2.0 release candidate: the full agent catalog (28 agents, 14 templates) and the Evaluation Lab, with live benchmarks on Groq's free tier recorded in `docs/BENCHMARKS.md`.

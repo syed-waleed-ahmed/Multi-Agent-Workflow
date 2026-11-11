@@ -222,7 +222,7 @@ You can also run without installing via `python -m campaign_forge ...` or the le
 
 ### Web app (Streamlit)
 
-**Live demo: [campaign-forge.streamlit.app](https://campaign-forge.streamlit.app/)** (simulated, no key needed).
+**Live demo: [campaign-forge.streamlit.app](https://campaign-forge.streamlit.app/)** (simulated by default, no key needed; live mode on request).
 
 ```bash
 pip install -e ".[ui]"
@@ -233,15 +233,28 @@ The app starts in **demo mode** with no API key. Every agent is answered by a de
 
 - **New Run:** a brief form or a JSON upload, an optional brand and notes, a plan preview (workflow graph, steps, optional steps you can skip, budget), and an explicit **Approve and run**.
 - **Run Inspector:** a live workflow graph, step status, outputs with their claims, evidence and provenance, approval gates, resume and cancel, and Markdown, JSON and HTML downloads.
-- **History, Brand Memory, Agents, Workflow Builder, Settings and Health.** Seven studios open New Run with the matching templates. The SEO and Analytics studios say plainly that their agents arrive in Session 8.
+- **History, Brand Memory, Agents, Workflow Builder, Settings and Health.** Seven studios open New Run with the matching templates.
 
 Set `CF_UI_MODE=local` to use your configured provider and the same run store and memory as the CLI; local runs execute in the background while the page refreshes.
+
+**Live mode** (Settings and Health, then "Live mode") runs the same workflows on Groq's free tier for real output. It has two options:
+- **Your own Groq key.** It is held in your browser session's memory only: never shown, logged or saved, and gone when you choose "Forget my key" or close the tab.
+- **The demo's key,** when the deployment's owner offers it.
+
+Each live run is capped at 25 model calls, 30,000 tokens and 20 minutes, and at most two run at once. Runs on the demo's key are also limited per visit and per day. Live runs, like demo runs, stay in your session. To offer the demo's key on your own deployment, add these Streamlit secrets and reboot the app:
+
+```toml
+GROQ_API_KEY = "gsk_..."
+CF_LIVE_OWNER_KEY = "true"   # a string: Streamlit exports only string and number secrets
+```
+
+The caps and their settings are in [`docs/SECURITY.md`](docs/SECURITY.md) section 5.
 
 ### Evaluation Lab
 
 ```bash
 campaign-forge bench full-campaign --offline                      # simulated, key-free, 10 briefs
-campaign-forge bench full-campaign --offline --dataset injection  # 8 injection attacks
+campaign-forge bench full-campaign --offline --dataset injection  # 14 injection attacks
 campaign-forge bench landing-page --only baseline-ecommerce       # live: a real benchmark
 ```
 

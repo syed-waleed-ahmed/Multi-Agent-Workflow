@@ -379,6 +379,7 @@ configurable pass-rate gate.
 | Evaluation Lab: datasets, benchmarks, baselines, `campaign-forge bench`, app page (ADR-036) | **Implemented** (S8) | `campaign_forge.services.lab`, `campaign_forge.evaluation.datasets` |
 | Streamlit app (T10): 16 navigation entries, demo and local modes, plan approval, run inspector, brand memory, workflow builder; Markdown/JSON/HTML exports (ADR-033) | **Implemented** (S6); demo live at https://campaign-forge.streamlit.app/ | `campaign_forge.ui`, `campaign_forge.exports`, `app/` |
 | FastAPI service (T10): 13 master-prompt endpoints plus approval and listings, API-key tenancy, limits, Docker (ADR-034) | **Implemented** (S7) | `campaign_forge.api`, `campaign_forge.services` |
+| Public live mode: owner or visitor Groq key, isolated settings, caps per run, session, day and concurrency; redaction wherever errors are recorded; injection hardening; `pip-audit` (ADR-037) | **Implemented** (S9) | `campaign_forge.services.live`, `campaign_forge.ui.session`, `campaign_forge.security` |
 
 Implementation notes on T5 and T6 (Session 2). These are decisions the design left open; see ADR-022.
 
@@ -794,7 +795,7 @@ flowchart LR
     GH["GitHub repository<br/>(source of truth)"] --> CI["GitHub Actions<br/>offline gates only"]
     GH --> SCC["Streamlit Community Cloud<br/>(free)"]
     SCC --> DEMO["Demo mode<br/>FakeProvider fixtures, no key"]
-    SCC --> LIVE["Live mode<br/>owner secret or visitor session key<br/>+ per-session caps"]
+    SCC --> LIVE["Live mode (ADR-037)<br/>owner secret or visitor session key<br/>caps per run, session, day, concurrency"]
     LIVE --> LLM2[("Free-tier LLM providers")]
     DEV["Local / Docker"] --> CLI3["CLI"]
     DEV --> API3["FastAPI + SQLite"]

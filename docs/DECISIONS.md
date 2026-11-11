@@ -46,6 +46,7 @@ This file is an append-only log of the significant decisions behind Campaign For
 | 034 | The API: a service layer, one tenant per key, closed by default, in-process background runs | Accepted | 2026-11-11 |
 | 035 | Cap-aware routing: long answers go to the provider's strong model instead of being truncated | Accepted | 2026-11-11 |
 | 036 | Wave 2 and the Evaluation Lab: code-computed numbers, no invented data, dated benchmarks with baselines | Accepted | 2026-11-11 |
+| 037 | Public live mode: isolated settings, caps tuned to measured runs, keys in session memory only | Accepted | 2026-11-11 |
 
 ---
 
@@ -442,3 +443,28 @@ This file is an append-only log of the significant decisions behind Campaign For
 - **Consequences.**
   - Agents with user-data inputs say plainly when the data is missing.
   - Changing a template or an agent's prompt can trip a baseline in CI. The fix is to rerun `campaign-forge bench ... --offline --save-baseline` deliberately and commit the new baseline.
+
+## ADR-037 Public live mode: isolated settings, caps tuned to measured runs, keys in session memory only
+
+- **Context.** Session 9 adds real model calls to the public demo. The demo must protect the owner's free quota, must never let a visitor reach the owner's other credentials, and must keep a visitor's key out of logs and storage. The Session 0 plan proposed caps of 20 calls and 20,000 tokens per live run.
+- **Decision.**
+  - **Two live options, both Groq** (ADR-019).
+    - The owner's key is read from Streamlit secrets. It is offered only when the owner sets `CF_LIVE_OWNER_KEY` (written as the string `"true"`: Streamlit exports only string, integer and float secrets to the environment).
+    - A visitor's own key is accepted only in Groq's shape (`gsk_` plus at least 20 letters or digits), so the key-pattern redaction always matches it.
+  - **Isolated settings.** A live session's settings come only from values the code passes. A settings subclass with no environment, `.env` or secrets-directory source enforces this. The deployment's Groq model and sampling settings carry over; nothing else does.
+  - **Caps.**
+    - Per run: 25 calls, 30,000 tokens, 20 minutes, tightening the plan.
+    - At once: 2 live runs per process, through one `RunSlots` shared by every browser session's `RunService`.
+    - Owner key only: 3 runs per session and 5 per UTC day.
+    - The per-run caps were raised from the plan because the measured `full-campaign` (19-21 calls, about 27,000 tokens) would otherwise always stop.
+  - **State.** Live runs are stored in session memory, as in demo mode (ADR-008). Leaving live mode drops the live session and its key; the demo session is restored.
+  - **Redaction everywhere a message is recorded.**
+    - The engine redacts step errors, pause details and events with the router's secrets plus key patterns.
+    - The run service redacts background errors.
+    - The Lab redacts case errors, since reports may be committed.
+    - The app configures the redacting log handler.
+  - **Not done: OpenTelemetry** (optional in the roadmap). It would add dependencies and an exporter with nowhere free to send it. The typed event stream and per-call usage already trace every run.
+- **Consequences.**
+  - The flagship workflow fits a live run. A day of owner-key runs fits the free quota.
+  - Counters reset on restart and a reload starts a new session, so the daily and concurrency caps, and finally the free tier, are the real bounds.
+  - Enabling the owner key is an owner action in the Streamlit Cloud settings, followed by a reboot.

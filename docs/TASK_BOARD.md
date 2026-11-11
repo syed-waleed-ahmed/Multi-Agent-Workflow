@@ -210,6 +210,33 @@ Granular tasks for each session.
 - [x] S8-12 Tests, docs (catalog, ADR, changelog, status), and release `2.0.0rc1`
 - [x] S8-13 D20 (found by a live benchmark): the JSON run store waits out a brief Windows file lock on replace; the Lab records any crash as a failed case; reports name the models that answered
 
-## Sessions 9-10
+## Session 9 - Security hardening and live mode
 
-Scope and acceptance criteria are in [ROADMAP.md](ROADMAP.md). Granular tasks are written at the start of each session.
+- [ ] S9-01 Release bookkeeping: confirm the `v2.0.0rc1` tag (at `4c8b726`) and record it in the status docs
+- [ ] S9-02 Live-mode settings (`CF_LIVE_*`), and isolated settings for public live sessions: they never read the deployment's other keys, fallbacks or routing overrides
+- [ ] S9-03 Process-wide live accounting (`services/live.py`):
+  - run slots shared by every browser session (concurrency);
+  - a daily cap on owner-key runs and a per-session cap;
+  - per-run caps on calls, tokens and wall time, applied by tightening the plan.
+- [ ] S9-04 Live mode in the app:
+  - the owner's key from Streamlit secrets, offered only when the owner opts in;
+  - a visitor's own Groq key: masked input, held in session memory only, never logged, with a "Forget my key" control;
+  - remaining runs shown; the Evaluation Lab runs live only in local mode.
+- [ ] S9-05 Safe errors and logs:
+  - the app configures redacting logging;
+  - background-run errors are redacted;
+  - a test proves no key reaches logs, errors, run records or exports.
+- [ ] S9-06 Injection hardening (D6):
+  - framing neutralises marker phrases, chat-template tokens, and invisible or bidirectional characters;
+  - canary checks normalise text first;
+  - the injection dataset grows with new attacks (brand memory, hidden characters, chat tokens, bare marker phrases, an exfiltration link, another language);
+  - the offline baseline is refreshed.
+- [ ] S9-07 `pip-audit` in CI (T13)
+- [ ] S9-08 Tests: caps enforced, concurrency across sessions, visitor-key handling, secrets kept out of logs, injection framing
+- [ ] S9-09 Docs: SECURITY (section 5 and the threat table), an ADR, deployment secrets, `.env.example`, README, CHANGELOG, status and session log
+- [ ] S9-10 Push, reboot the public demo, and verify demo mode and the live-mode controls in the browser. A live run on the owner's key needs the owner to add the key to the app's Streamlit secrets.
+- [ ] S9-11 OpenTelemetry (optional in the roadmap): decide, and record the decision
+
+## Session 10
+
+Scope and acceptance criteria are in [ROADMAP.md](ROADMAP.md). Granular tasks are written at the start of the session.
