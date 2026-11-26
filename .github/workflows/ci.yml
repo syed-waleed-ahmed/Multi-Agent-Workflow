@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+# Every job only reads the repository, so the token gets no more than that.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
